@@ -3,12 +3,18 @@
 @tailwind utilities;
 
 :root {
+  --dark-mode-color: #c7d6da; /* Dark mode color */
+  --light-mode-color: #191a1a; /* Light mode color */
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  .color-change {
+    color: var(--dark-mode-color);
   }
 }
 
-body {
+@media (prefers-color-scheme: light) {
+  .color-change {
+    color: var(--light-mode-color);
+  }
 }

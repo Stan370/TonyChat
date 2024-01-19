@@ -3,7 +3,7 @@ import Siderbar from './components/Siderbar'
 
 export default function Home() {
   return (
-    <div className="relative flex min-h-screen  overflow-hidden bg-gray-50 py-6 ">
+    <div className="relative h-screen min-h-screen flex overflow-hidden bg-gray-50 dark:bg-[#17171a] dark:text-red-50 py-6 ">
       <Siderbar></Siderbar>
       <article>
         <h2>Article Title</h2>
