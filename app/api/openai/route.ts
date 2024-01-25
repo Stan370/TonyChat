@@ -1,4 +1,4 @@
-import { getServerConfig } from "../config/server";
+import { getServerConfig } from "@/config/server";
 import { ServerRuntime } from "next";
 import OpenAI from "openai";
 import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs";
