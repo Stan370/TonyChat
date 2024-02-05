@@ -1,4 +1,4 @@
-This is a chatbot prototype
+TonyChat is a open-source multifunctional Chatbot, which you can use for your personal and business purpose safely. It supports customized chatbot deploy, easy fine tuning your models, safety and privacy. 
 
 ## Getting Started
 

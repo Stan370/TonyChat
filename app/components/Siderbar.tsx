@@ -4,7 +4,7 @@ import DarkSwitch from './DarkSwitch';
 
 const Siderbar = () => {
     return (
-        <div className="flex flex-col h-screen space-y-8 w-24 dark:text-red-50 hidden:md border-r-2 border-collapse bg-gray-150 items-center ">
+        <div className="flex flex-col h-screen space-y-8 w-20 dark:text-red-50 hidden:md border-r-2 border-collapse bg-gray-150 items-center p-3">
             <Image src="/T_icon.png" alt="a" width="48" height="48"/>
             <a href="#" className="group hover:text-blue-500  text-center">
             <div className="items-center justify-center hover:text-blue-500 transition-transform duration-200 ease-in-out group-hover:scale-75">

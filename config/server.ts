@@ -28,7 +28,7 @@ declare global {
       NODE_ENV,
       NEXT_PUBLIC_VERCEL_ENV,
       NEXT_PUBLIC_BACKEND_URL,
-      OPENAI_API_KEY,
+      OPENAI_API_KEY, 
       // ... other environment variables
       OPENAI_BASE_URL,
       OPENAI_ORG_ID, 
