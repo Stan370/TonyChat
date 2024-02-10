@@ -1,30 +1,42 @@
-import Siderbar from './components/Siderbar'
-
+import Head from "@/node_modules/next/head";
+import Carousel from "./components/Carousel";
+import Siderbar from "./components/Siderbar";
 
 export default function Home() {
+  const slides = ["/1.jpg", "/2.jpg", "/3.jpg"];
+
   return (
-    <div className="relative h-screen min-h-screen flex overflow-hidden bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
-      <Siderbar></Siderbar>
-      <div className="section">
-        <div id="default-carousel" className="relative w-full" data-carousel="slide">
-          carousel
-        </div>
-
+    <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
+      <Head>
+        <title>TonyChat - Your Personal and Business Chatbot</title>
+        <meta
+          name="description"
+          content="TonyChat is an open-source, multifunctional Chatbot suitable for both personal and business purposes. It allows for customized chatbot deployment, easy model fine-tuning, and ensures safety and privacy."
+        />
+        <meta
+          property="og:title"
+          content="TonyChat - Your Personal and Business Chatbot"
+        />
+        <meta
+          property="og:description"
+          content="TonyChat is an open-source, multifunctional Chatbot suitable for both personal and business purposes. It allows for customized chatbot deployment, easy model fine-tuning, and ensures safety and privacy."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/T_icon.png" />{" "}
+        {/* Replace "/path/to/tonychat-image.png" with the actual path to your image */}
+        <meta property="og:url" content="https://www.tonychat.com" />{" "}
+        {/* Update this URL to the actual URL of your project */}
+        <link rel="icon" href="/favicon.ico" />
+        {/* Add any additional tags that are relevant to your project */}
+      </Head>
+      <Siderbar></Siderbar> 
+      <div className="relative m-auto p-4">
+        <Carousel autoPlay={true}>
+          {slides}
+        </Carousel>
       </div>
+
       
-      <article>
-        <h2>Find & explore customized agents</h2>
-        <p>This is the main content of the article.</p>
-      </article>
-
-      <section>
-        <h2>Another Section</h2> 
-        <p>Some more content in another section.</p>
-      </section>
-
-      <footer>
-        <p>&copy; 2024 TonyChat</p>
-      </footer>
     </div>
   );
 }
