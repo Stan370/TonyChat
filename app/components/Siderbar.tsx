@@ -1,11 +1,12 @@
 import Image from "next/image";
 import DarkSwitch from "./DarkSwitch";
+import Link from "next/link";
 
 const Siderbar = () => {
   return (
       <div className="sticky top-0 left-0 flex flex-col h-screen space-y-8 w-20 dark:text-red-50  border-r-2 border-collapse bg-gray-150 items-center p-3">
         <Image src="/T_icon.png" alt="a" width="48" height="48" />
-        <a href="#" className="group hover:text-blue-500  text-center">
+        <Link href="/" className="group hover:text-blue-500  text-center">
           <div className="items-center justify-center hover:text-blue-500 transition-transform duration-200 ease-in-out group-hover:scale-75">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -18,8 +19,8 @@ const Siderbar = () => {
             </svg>
           </div>
           Home
-        </a>
-        <a href="/chat" className="group hover:text-blue-500  text-center">
+        </Link>
+        <Link href="/chat" className="group hover:text-blue-500  text-center">
           <div className="items-center justify-center hover:text-blue-500 transition-transform duration-200 ease-in-out group-hover:scale-75">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -37,8 +38,8 @@ const Siderbar = () => {
             </svg>
           </div>
           Chat
-        </a>
-        <a href="#" className="group hover:text-blue-500 text-center">
+        </Link>
+        <Link href="#" className="group hover:text-blue-500 text-center">
           <div className="items-center justify-center hover:text-blue-500 transition-transform duration-200 ease-in-out group-hover:scale-75">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -56,7 +57,7 @@ const Siderbar = () => {
             </svg>
           </div>
           Saved
-        </a>
+        </Link>
         <DarkSwitch />
       </div>
   );

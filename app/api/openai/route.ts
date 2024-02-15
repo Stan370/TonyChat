@@ -18,20 +18,25 @@ export async function POST(request: Request) {
 
     const openai = new OpenAI({
       apiKey: config.openaiApiKey || "",
+      baseURL: config.openaiBaseUrl || config.openaiProxyUrl,
     });
 
-    const stream = await openai.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: messages as ChatCompletionCreateParamsBase["messages"],
       stream: true,
-    });
-
-    for await (const chunk of stream) {
+    }
+    ,{headers:{ Accept: '*/*' } });
+    
+    for await (const chunk of response) {
+      console.log(JSON.parse(chunk.choices[0]?.delta?.content||""))
       process.stdout.write(chunk.choices[0]?.delta?.content || "");
     }
+
   } catch (error: any) {
     const errorMessage = error.error?.message || "An unexpected error occurred";
     const errorCode = error.status || 500;
+
     return new Response(JSON.stringify({ message: errorMessage }), {
       status: errorCode,
     });

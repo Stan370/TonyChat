@@ -31,6 +31,7 @@ declare global {
       OPENAI_API_KEY, 
       // ... other environment variables
       OPENAI_BASE_URL,
+      OPENAI_PROXY_URL,
       OPENAI_ORG_ID, 
       AZURE_OPENAI_API_KEY,
       NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT,
@@ -46,6 +47,7 @@ declare global {
       openaiApiKey: OPENAI_API_KEY,
       // ... other properties   
       openaiBaseUrl: OPENAI_BASE_URL,
+      openaiProxyUrl: OPENAI_PROXY_URL,
       openaiOrgId: OPENAI_ORG_ID,
       azureOpenaiApiKey: AZURE_OPENAI_API_KEY,
       azureOpenaiEndpoint: NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT,
