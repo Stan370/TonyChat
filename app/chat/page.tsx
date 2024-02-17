@@ -2,7 +2,7 @@ import Siderbar from "../components/Siderbar";
 
 const Chat = () => {
     const [message, setMessage] = useState('');
-    const [assistant, setAssistant] = useState(0);
+    const [conversations, setConversations] = useState(0);
   return (
     <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
       <Siderbar></Siderbar>
