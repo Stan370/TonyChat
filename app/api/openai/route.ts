@@ -1,7 +1,6 @@
 import { getServerConfig } from "@/config/server";
 import { ServerRuntime } from "next";
 import OpenAI from "openai";
-import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs";
 
 export const runtime: ServerRuntime = "edge";
 
@@ -23,7 +22,7 @@ export async function POST(request: Request) {
 
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
-      messages: messages as ChatCompletionCreateParamsBase["messages"],
+      messages: [{ role: 'user', content: 'Say this is a test' }],
       stream: true,
     }
     ,{headers:{ Accept: '*/*' } });
