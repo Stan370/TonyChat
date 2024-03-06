@@ -4,9 +4,9 @@ import { useState } from "react";
 import Siderbar from "../components/Siderbar";
 import { OpenAIChatMessage } from "@/lib/ModelSetting";
 
+
 const Chat = () => {
-  const [message, setMessage] = useState("");
-  const [conversations, setConversations] = useState(0);
+  const [message, setMessage] = useState("Hi");
   const agents: OpenAIChatMessage[] = [
     {
       role: "system",
@@ -20,12 +20,49 @@ const Chat = () => {
         "I really enjoyed reading To Kill a Mockingbird, could you recommend me a book that is similar and tell me why?",
     },
   ];
+  const [conversations, setConversations] = useState([agents[0]]);
+  
+    // Function to handle sending a message
+  const sendMessage = async () => {
+    // Add user message to conversations
+    if (message.trim()) {
+      setConversations([...conversations, { role: 'user', content: message }]);
+      
+      // Call API route and add AI message to conversations
+      //const response = await fetch('/api/chat/openai', {
+      const response = await fetch('http://localhost:3000/api/chat/openai', {
+        method: 'POST',
+        headers: {
+        },
+        body: JSON.stringify({message }),
+      });
 
+      const data = await response.json();
+      if (data.message) {
+        setConversations([...conversations, { role: 'assistant', content: data.message }]);
+      }
+
+      // Reset the message input
+      setMessage('');
+    }
+  };
+  
+    // Message input handler
+    const handleMessageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      setMessage(event.target.value);
+    };
+  
+    // Function to handle when the 'Send' button is clicked
+    const handleSendClick = () => {
+      sendMessage();
+    };
+  
+  
   return (
     <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
       <Siderbar></Siderbar>
       <div className="flex flex-col overflow-y-auto">
-        <div class="flex h-16 w-full flex-shrink-0"> </div>
+        <div className="flex h-16 w-full flex-shrink-0"> </div>
       </div>
 
       <div className="p-4 max-w-md mx-auto bg-white shadow-md rounded-lg">
@@ -33,9 +70,9 @@ const Chat = () => {
           {conversations.map((text, index) => (
             <div
               key={index}
-              className={`p-2 ${index % 2 === 0 ? "text-left" : "text-right"}`}
+              className={`message ${text.role}`}
             >
-              {text}
+              {text.content}
             </div>
           ))}
         </div>
