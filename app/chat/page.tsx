@@ -7,6 +7,8 @@ import { OpenAIChatMessage } from "@/lib/ModelSetting";
 
 const Chat = () => {
   const [message, setMessage] = useState("Hi");
+  const [conversations, setConversations] = useState([agents[0]]);
+
   const agents: OpenAIChatMessage[] = [
     {
       role: "system",
@@ -20,7 +22,6 @@ const Chat = () => {
         "I really enjoyed reading To Kill a Mockingbird, could you recommend me a book that is similar and tell me why?",
     },
   ];
-  const [conversations, setConversations] = useState([agents[0]]);
   
     // Function to handle sending a message
   const sendMessage = async () => {
