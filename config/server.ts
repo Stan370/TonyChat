@@ -56,4 +56,52 @@ declare global {
       azureGpt45TurboId: NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
     };
   };
+
+  const express = require("express");
+  const bodyParser = require("body-parser");
+  const sqlite3 = require("sqlite3").verbose();
+  
+  const app = express();
+  const port = 3000;
+  
+  app.use(bodyParser.json());
+  
+  // SQLite database setup
+  const db = new sqlite3.Database(":memory:"); // In-memory database for demonstration purposes
+  
+  // Create conversations table
+  db.serialize(() => {
+    db.run(
+      "CREATE TABLE IF NOT EXISTS conversations (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT)"
+    );
+  });
+  
+  // Endpoint to save conversation
+  app.post("/conversation", (req, res) => {
+    const { role, content } = req.body;
+    db.run("INSERT INTO conversations (role, content) VALUES (?, ?)", [role, content], (err) => {
+      if (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Failed to save conversation" });
+      } else {
+        res.status(201).json({ message: "Conversation saved successfully" });
+      }
+    });
+  });
+  
+  // Endpoint to retrieve all conversations
+  app.get("/conversations", (req, res) => {
+    db.all("SELECT * FROM conversations", (err, rows) => {
+      if (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Failed to retrieve conversations" });
+      } else {
+        res.status(200).json(rows);
+      }
+    });
+  });
+  
+  app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+  });
   
