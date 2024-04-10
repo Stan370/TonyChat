@@ -1,5 +1,8 @@
 TonyChat is a open-source multifunctional Chatbot, which you can use for your personal and business purpose safely. It supports customized chatbot deploy, easy fine tuning your models, safety and privacy. 
 
+
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Stan370/TonyChat/badge)](https://securityscorecards.dev/viewer/?uri=github.comStan370/TonyChat)
+
 ## Getting Started
 
 First, run the development server:
