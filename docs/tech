@@ -1,0 +1,26 @@
+Sure, let's go through the process step-by-step:
+
+1. **Update the `Agent` interface in `agentManager.ts`**:
+   - We added a new property called `conversations` to the `Agent` interface. This will store the chat messages for each agent.
+   - The `conversations` property is an array of `OpenAIChatMessage` objects, which represent the messages in the chat.
+
+2. **Update the `createAgent()` function in `agentManager.ts`**:
+   - When a new agent is created, we initialize its `conversations` array with the first message (which is typically the system message).
+   - This ensures that each agent has a starting point for their conversation history.
+
+3. **Update the `sendMessage()` function in the `Chat` component**:
+   - When the user sends a message, we first add the user's message to the current agent's `conversations` array.
+   - Then, we call the API to get the assistant's response and add it to the current agent's `conversations` array as well.
+   - Finally, we update the `conversations` state in the `Chat` component to reflect the changes.
+
+4. **Update the `handleAgentClick()` function in the `Chat` component**:
+   - When the user clicks on an agent, we retrieve the selected agent from the `agentManager` using the `getAgent()` function.
+   - We then update the `conversations` state in the `Chat` component to display the selected agent's conversation history.
+
+The key points in this process are:
+
+1. Storing the conversation history for each agent in the `Agent` object.
+2. Updating the agent's `conversations` array when a new message is sent.
+3. Updating the `conversations` state in the `Chat` component to display the correct conversation history based on the selected agent.
+
+By implementing this process, you can ensure that each agent has its own conversation history, and the user can switch between agents while retaining the appropriate chat context.

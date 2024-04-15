@@ -4,7 +4,7 @@ import { useState } from "react";
 import Siderbar from "../components/Siderbar";
 import { OpenAIChatMessage } from "@/lib/ModelSetting";
 
-const agents: OpenAIChatMessage[] = [
+const initialAgents = [
   {
     role: "system",
     name: "GPT Prompt builder",
@@ -17,10 +17,12 @@ const agents: OpenAIChatMessage[] = [
       "I really enjoyed reading To Kill a Mockingbird, could you recommend me a book that is similar and tell me why?",
   },
 ];
-
+      
+  
 const Chat = () => {
   const [message, setMessage] = useState("Hi");
-  const [conversations, setConversations] = useState([agents[0]]);
+  const [selectedAgent, setSelectedAgent] = useState(initialAgents[0]);
+  const [conversations, setConversations] = useState(initialAgents[0]);
 
   // Function to handle sending a message
   const sendMessage = async () => {
@@ -60,34 +62,36 @@ const Chat = () => {
   };
 
   return (
+    
     <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
       <Siderbar></Siderbar>
+      
       <div className="flex flex-col overflow-y-auto">
         <div className="flex h-16 w-full flex-shrink-0"> </div>
       </div>
 
-        <div class="group border relative  active:opacity-90 ">
-          <a
-            href="/chat/caa27062-b517-41c7-a858-245031795e3f"
-            class="flex items-center gap-2 p-2"
-          >
-            <div class="relative min-w-48 h-10 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
-              asdf
-            </div>
-          </a>
-          <div class="absolute bottom-0 right-0 top-0 items-center gap-1.5 pr-2 flex">
-            <button
-              class="flex items-center justify-center text-token-text-primary transition hover:text-token-text-secondary radix-state-open:text-token-text-secondary"
-              type="button"
-              id="radix-:rn3:"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              data-state="closed"
-            >
-            </button>
-            
+      <div className="group border relative  active:opacity-90 ">
+        <a
+          href="/chat/caa27062-b517-41c7-a858-245031795e3f"
+          className="flex items-center gap-2 p-2"
+        >
+          <div className="relative min-w-48 h-10 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
+            asdf
           </div>
+        </a>
+        <div className="absolute bottom-0 right-0 top-0 items-center gap-1.5 pr-2 flex">
+          <button
+            className="flex items-center justify-center text-token-text-primary transition hover:text-token-text-secondary radix-state-open:text-token-text-secondary"
+            type="button"
+            id="radix-:rn3:"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            data-state="closed"
+          >
+          </button>
+          
         </div>
+      </div>
       <div className="p-4 max-w-md mx-auto bg-white shadow-md rounded-lg">
         <div className="mb-4 h-64 overflow-y-auto">
           {conversations.map((text, index) => (
