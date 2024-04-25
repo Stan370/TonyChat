@@ -9,10 +9,11 @@ export async function POST(request: Request) {
     const config = await getServerConfig();
 
     const openai = new OpenAI({
-      apiKey: config.openaiApiKey || "",
+      apiKey: config.openaiApiKey,
       baseURL: config.openaiBaseUrl || config.openaiProxyUrl,
     });
     console.log(openai.baseURL);
+    console.log(openai.apiKey);
 
     const response = await openai.chat.completions.create(
       {
@@ -20,15 +21,20 @@ export async function POST(request: Request) {
         messages: [{ role: "user", content: "Say this is a test" }],
         stream: true,
       },
-      { headers: {     Authorization: `Bearer ${openai.apiKey}`,
-        Accept: "*/*" } }
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openai.apiKey}`,
+        },
+      }
     );
+
 
     for await (const chunk of response) {
       console.log(chunk.choices[0].delta);
       process.stdout.write(chunk.choices[0]?.delta?.content || "");
     }
-    return;
+    return response;
   } catch (error: any) {
     const errorMessage = error.error?.message || "An unexpected error occurred";
     const errorCode = error.status || 500;
