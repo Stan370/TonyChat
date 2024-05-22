@@ -5,6 +5,10 @@ TonyChat is a open-source multifunctional Chatbot, which you can use for your pe
 
 ## Getting Started
 
+Frontend: React, TypeScript, Tailwind CSS
+Backend: Node.js, Express.js
+AI Integration: OpenAI API
+
 First, run the development server:
 
 ```bash
@@ -24,14 +28,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
 
-## Learn More
+## Features
 
-To learn more about Next.js, take a look at the following resources:
+Modular Architecture: The Chatbot component is designed to be modular, allowing users to easily switch between running the chatbot locally or on a server.
+Agent Management: The component allows users to specify a unique identifier for the chatbot agent (agentId) and provides an interface for initializing and communicating with the agent.
+Conversation Management: The component manages the conversation state, including the conversation ID and messages.
+Message Handling: The component handles user input and sends it to the chatbot agent, either locally or on the server. It also displays the chatbot's response in the conversation window.
+Local Mode: The component provides an option to run the chatbot locally, allowing users to test and develop their chatbot agents without relying on a server.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
 

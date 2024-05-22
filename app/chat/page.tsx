@@ -23,7 +23,7 @@ const initialAgents:OpenAIChatMessage[] = [
 
   
 const Chat = () => {
-  const [message, setMessage] = useState("Hi");
+  const [message, setMessage] = useState<string>("Hi");
   const [selectedAgent, setSelectedAgent] = useState<OpenAIChatMessage>(initialAgents[0]);
   const [conversations, setConversations] = useState<OpenAIChatMessage[]>(initialAgents);
   let messageId = 0;           //Tod
@@ -39,7 +39,7 @@ const Chat = () => {
       // Call API route and add AI message to conversations
       const response = await fetch("/api/chat/openai", {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: message,
       });
       const data = await response.json();
       if (data) {
@@ -57,11 +57,11 @@ const Chat = () => {
     setMessage(event.target.value);
   };
 
-  // Function to handle when the 'Send' button is clicked
-  const handleSendClick = () => {
-    sendMessage();
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      sendMessage();
+    }
   };
-
   return (
     
     <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
@@ -98,19 +98,28 @@ const Chat = () => {
           <div id="chat-log" className="flex-1">
           {conversations.map((text, index) => (
             <div id={`log-${index}`} key={index} className="my-4 leading-1.5 p-4 border-gray-200 bg-gray-100 rounded-e-xl rounded-es-xl dark:bg-gray-700">
-              {Array.isArray(text.content)
+                {Array.isArray(text.content)
                   ? text.content.map((part: UserMessageContentPart, partIndex) => (
-                      <span key={partIndex}>{part.text}</span>
+                      <span key={partIndex}>{part.type === "text" && <span>{part.text}</span>}
+                      {part.type === "image_url" && (
+                        <img
+                          src={part.image_url.url}
+                          alt="Content"
+                          className="my-2 max-w-full rounded"
+                        />
+                      )}</span>
                     ))
                   : text.content}
             </div>
           ))}
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="input-box flex items-center">
           <input
             type="text"
-            onChange={(e) => setMessage(e.target.value)}
+            value={message}
+            onChange={handleMessageChange}
+            onKeyPress={handleKeyPress}
             className="flex-1 p-2 border-2 border-gray-200 rounded-md"
             placeholder="Type your message..."
           />
