@@ -2,9 +2,6 @@
  * LLM 模型
  */
 export enum LanguageModel {
-  /**
-   * GPT 3.5 Turbo
-   */
   GPT3_5 = "gpt-3.5-turbo",
   GPT3_5_1106 = "gpt-3.5-turbo-1106",
   GPT3_5_16K = "gpt-3.5-turbo-16k",
@@ -20,31 +17,55 @@ export enum LanguageModel {
 export interface ChatModelCard {
   description?: string;
   displayName?: string;
-  /**
-   * whether model supports file upload
-   */
   files?: boolean;
-  /**
-   * whether model supports function call
-   */
   functionCall?: boolean;
   hidden?: boolean;
   id: string;
-  /**
-   * whether model is custom
-   */
   isCustom?: boolean;
   /**
    * whether model is legacy (deprecated but not removed yet)
    */
   legacy?: boolean;
   tokens?: number;
-  /**
-   *  whether model supports vision
-   */
   vision?: boolean;
 }
 
+const Mistral: ModelProviderCard = {
+  chatModels: [
+    {
+      displayName: 'Mistral 7B',
+      id: 'open-mistral-7b',
+      tokens: 32_768,
+    },
+    {
+      displayName: 'Mixtral 8x7B',
+      id: 'open-mixtral-8x7b',
+      tokens: 32_768,
+    },
+    {
+      displayName: 'Mixtral 8x22B',
+      functionCall: true,
+      id: 'open-mixtral-8x22b',
+      tokens: 65_536,
+    },
+    {
+      displayName: 'Mistral Small',
+      id: 'mistral-small-latest',
+      tokens: 32_768,
+    },
+    {
+      displayName: 'Mistral Medium',
+      id: 'mistral-medium-latest',
+      tokens: 32_768,
+    },
+    {
+      displayName: 'Mistral Large',
+      id: 'mistral-large-latest',
+      tokens: 32_768,
+    },
+  ],
+  id: 'mistral',
+};
 export interface ModelProviderCard {
   chatModels: ChatModelCard[];
   enabled?: boolean;
@@ -58,24 +79,13 @@ export interface LLMParams {
    * @default 0
    */
   frequency_penalty?: number;
-  /**
-   * 生成文本的最大长度
-   */
   max_tokens?: number;
-  /**
-   * 控制生成文本中的惩罚系数，用于减少主题的变化
-   * @default 0
-   */
   presence_penalty?: number;
   /**
    * 生成文本的随机度量，用于控制文本的创造性和多样性
    * @default 0.6
    */
   temperature?: number;
-  /**
-   * 控制生成文本中最高概率的单个 token
-   * @default 1
-   */
   top_p?: number;
 }
 
@@ -199,4 +209,231 @@ export interface ChatCompletionFunctions {
   parameters?: {
     [key: string]: any;
   };
+}
+import { LLMID } from "@/types"
+
+type ChatSettingLimits = {
+  MIN_TEMPERATURE: number
+  MAX_TEMPERATURE: number
+  MAX_TOKEN_OUTPUT_LENGTH: number
+  MAX_CONTEXT_LENGTH: number
+}
+
+export const CHAT_SETTING_LIMITS: Record<LLMID, ChatSettingLimits> = {
+  // ANTHROPIC MODELS
+  "claude-2.1": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 200000
+  },
+  "claude-instant-1.2": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 100000
+  },
+  "claude-3-haiku-20240307": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 200000
+  },
+  "claude-3-sonnet-20240229": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 200000
+  },
+  "claude-3-opus-20240229": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 200000
+  },
+
+  // GOOGLE MODELS
+  "gemini-1.5-pro-latest": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 8192,
+    MAX_CONTEXT_LENGTH: 1040384
+  },
+  "gemini-pro": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 2048,
+    MAX_CONTEXT_LENGTH: 30720
+  },
+  "gemini-pro-vision": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 12288
+  },
+
+  // MISTRAL MODELS
+  "mistral-tiny": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 2000,
+    MAX_CONTEXT_LENGTH: 8000
+  },
+  "mistral-small-latest": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 2000,
+    MAX_CONTEXT_LENGTH: 32000
+  },
+  "mistral-medium-latest": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 2000,
+    MAX_CONTEXT_LENGTH: 32000
+  },
+  "mistral-large-latest": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 2000,
+    MAX_CONTEXT_LENGTH: 32000
+  },
+
+  // GROQ MODELS
+  "llama3-8b-8192": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 8192,
+    MAX_CONTEXT_LENGTH: 8192
+  },
+  "llama3-70b-8192": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 8192,
+    MAX_CONTEXT_LENGTH: 8192
+  },
+  "mixtral-8x7b-32768": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 32768
+  },
+  "gemma-7b-it": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 8192,
+    MAX_CONTEXT_LENGTH: 8192
+  },
+
+  // OPENAI MODELS
+  "gpt-3.5-turbo": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 4096
+    // MAX_CONTEXT_LENGTH: 16385 (TODO: Change this back to 16385 when OpenAI bumps the model)
+  },
+  "gpt-4-turbo-preview": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 128000
+  },
+  "gpt-4-vision-preview": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 128000
+  },
+  "gpt-4": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 8192
+  },
+  "gpt-4o": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 128000
+  },
+
+  // PERPLEXITY MODELS
+  "pplx-7b-online": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.99,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 4096
+  },
+  "pplx-70b-online": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.99,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 4096
+  },
+  "pplx-7b-chat": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 8192
+  },
+  "pplx-70b-chat": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 4096
+  },
+  "mixtral-8x7b-instruct": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 16384,
+    MAX_CONTEXT_LENGTH: 16384
+  },
+  "mistral-7b-instruct": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 16384,
+    MAX_CONTEXT_LENGTH: 16384
+  },
+  "llama-2-70b-chat": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 4096
+  },
+  "codellama-34b-instruct": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 4096,
+    MAX_CONTEXT_LENGTH: 16384
+  },
+  "codellama-70b-instruct": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 16384,
+    MAX_CONTEXT_LENGTH: 16384
+  },
+  "sonar-small-chat": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 16384,
+    MAX_CONTEXT_LENGTH: 16384
+  },
+  "sonar-small-online": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 12000,
+    MAX_CONTEXT_LENGTH: 12000
+  },
+  "sonar-medium-chat": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 16384,
+    MAX_CONTEXT_LENGTH: 16384
+  },
+  "sonar-medium-online": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 1.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 12000,
+    MAX_CONTEXT_LENGTH: 12000
+  }
 }

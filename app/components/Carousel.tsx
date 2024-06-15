@@ -52,7 +52,7 @@ const Carousel = ({
       </div>
       <div className="absolute left-0 right-0 bottom-2 ">
         <div className="flex justify-center items-center gap-4">
-          {slides.map((slide, index) => (
+          {slides.map((_slide, index) => (
             <div
               key={index}
               onClick={() => {
