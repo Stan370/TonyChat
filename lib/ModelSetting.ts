@@ -56,12 +56,10 @@ const Mistral: ModelProviderCard = {
     {
       displayName: 'Mistral Medium',
       id: 'mistral-medium-latest',
-      tokens: 32_768,
     },
     {
       displayName: 'Mistral Large',
       id: 'mistral-large-latest',
-      tokens: 32_768,
     },
   ],
   id: 'mistral',
@@ -70,6 +68,7 @@ export interface ModelProviderCard {
   chatModels: ChatModelCard[];
   enabled?: boolean;
   id: string;
+  token?: number;
 }
 
 // 语言模型的设置参数
