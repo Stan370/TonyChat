@@ -30,11 +30,11 @@ This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-opti
 
 ## Features
 
-Modular Architecture: The Chatbot component is designed to be modular, allowing users to easily switch between running the chatbot locally or on a server.
-Agent Management: The component allows users to specify a unique identifier for the chatbot agent (agentId) and provides an interface for initializing and communicating with the agent.
-Conversation Management: The component manages the conversation state, including the conversation ID and messages.
-Message Handling: The component handles user input and sends it to the chatbot agent, either locally or on the server. It also displays the chatbot's response in the conversation window.
-Local Mode: The component provides an option to run the chatbot locally, allowing users to test and develop their chatbot agents without relying on a server.
+1. **Modular Architecture**: The Chatbot component is designed to be modular, allowing users to easily switch between running the chatbot locally or on a server.
+2. **Agent Management**: The component allows users to specify a unique identifier for the chatbot agent (`agentId`) and provides an interface for initializing and communicating with the agent.
+3. **Conversation Management**: The component manages the conversation state, including the conversation ID and messages.
+4. **Message Handling**: The component handles user input and sends it to the chatbot agent, either locally or on the server. It also displays the chatbot's response in the conversation window.
+5. **Local Mode**: The component provides an option to run the chatbot locally, allowing users to test and develop their chatbot agents without relying on a server.
 
 
 ## Deploy on Vercel
