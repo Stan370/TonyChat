@@ -1,3 +1,5 @@
+import { LLMID } from "@/types"
+
 /**
  * LLM 模型
  */
@@ -209,7 +211,6 @@ export interface ChatCompletionFunctions {
     [key: string]: any;
   };
 }
-import { LLMID } from "@/types"
 
 type ChatSettingLimits = {
   MIN_TEMPERATURE: number
