@@ -56,7 +56,7 @@ const Siderbar = () => {
               />
             </svg>
           </div>
-          Saved
+          Store
         </Link>
         <DarkSwitch />
       </div>
