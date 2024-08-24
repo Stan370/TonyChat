@@ -46,24 +46,26 @@ export default function Home() {
       </section>
 
       <section className="py-20">
+    
         <div className="container mx-auto px-6">
           <h2 className="text-3xl font-bold text-center mb-8">Key Features</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
               <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">Customizable Chatbots</h3>
-              <p className="text-gray-700 dark:text-gray-300">Deploy AI chatbots tailored to your specific needs.</p>
+              <p className="text-gray-700 dark:text-gray-300">Deploy AI chatbots tailored to your specific needs.Tailor your chatbot to your specific needs with ease.
+</p>
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
               <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">Easy Fine-Tuning</h3>
-              <p className="text-gray-700 dark:text-gray-300">Effortlessly train and improve your models.</p>
+              <p className="text-gray-700 dark:text-gray-300">Effortlessly train and improve your models.Refine your models for optimal performance and accuracy.</p>
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
               <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">Safety & Privacy</h3>
-              <p className="text-gray-700 dark:text-gray-300">Ensure data protection and user privacy.</p>
+              <p className="text-gray-700 dark:text-gray-300">Your data is protected and secure with our platform.</p>
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
               <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">Open-Source</h3>
-              <p className="text-gray-700 dark:text-gray-300">Benefit from community-driven development.</p>
+              <p className="text-gray-700 dark:text-gray-300">Find, share, and use prompts to accelerate your AI development.</p>
             </div>
           </div>
         </div>

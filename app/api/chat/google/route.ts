@@ -1,26 +1,34 @@
-const {
-  GoogleGenerativeAI,
-  HarmCategory,
-  HarmBlockThreshold,
-} = require("@google/generative-ai");
-import { StreamingTextResponse } from "ai";
-import { NextResponse } from "next/server";
+import { getServerConfig } from "@/config/server";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+
+// Ensure the environment variable is correctly set and decoded
+const googleServiceKey = process.env.GOOGLE_SERVICE_KEY;
+if (!googleServiceKey) {
+  throw new Error("Missing GOOGLE_SERVICE_KEY environment variable.");
+}
 
 const credentials = JSON.parse(
-  Buffer.from(process.env.GOOGLE_SERVICE_KEY || "", "base64").toString()
+  Buffer.from(googleServiceKey, "base64").toString()
 );
 
-const model = "gemini-1.5-pro-preview-0409";
-const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-  
+export async function POST(req: Request) {
+  try {
+    // Fetch server configuration
+    const config = await getServerConfig();
+    
+    // Initialize Google Generative AI with the provided credentials
+    const genAI = new GoogleGenerativeAI(config.geminiKey);
+    const modelG = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    // Define the generation configuration
     const generationConfig = {
       temperature: 0.8,
       topK: 0.9,
       topP: 1,
       maxOutputTokens: 2048,
     };
-  
+
+    // Define the safety settings for content filtering
     const safetySettings = [
       {
         category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -39,103 +47,30 @@ const genAI = new GoogleGenerativeAI(API_KEY);
         threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
       },
     ];
-  
-    const chat = model.startChat({
+
+    // Start a chat session with the generative AI model
+    const chat = modelG.startChat({
       generationConfig,
-      safetySettings,
-      history: [
-      ],
+      safetySettings,  // Pass safety settings if needed
     });
-  
 
-function iteratorToStream(iterator: any) {
-  return new ReadableStream({
-    async pull(controller) {
-      const { value, done } = await iterator.next();
+    // Extract messages from the request
+    const { messages } = await req.json();
 
-      if (done || !value) {
-        controller.close();
-      } else {
-        const data = value.candidates[0].content.parts[0].text;
+    // Send the message to the model and await the response
+    const result = await chat.sendMessage(messages);
+    const response = await result.response;
 
-        // controller.enqueue(`data: ${data}\n\n`);
-        controller.enqueue(data);
-      }
-    },
-  });
-}
+    return new Response(JSON.stringify(response), {
+      status: 200,
+    });
+  } catch (error: any) {
+    const errorMessage = error.message || "An unexpected error occurred";
+    const errorCode = error.status || 500;
+    console.error(error);
 
-export async function POST(req: Request) {
-  const formData = await req.formData();
-  const files = formData.getAll("files") as File[];
-  const notes = formData.get("notes");
-  const totalQuizQuestions = formData.get("quizCount");
-  const difficulty = formData.get("difficulty");
-  const topic = formData.get("topic");
-
-  if (files.length < 1 && !notes) {
-    return new NextResponse("Please provide either a file or notes", {
-      status: 400,
+    return new Response(JSON.stringify({ message: errorMessage }), {
+      status: errorCode,
     });
   }
-
-  const text1 = {
-    text: `You are an all-rounder tutor with professional expertise in different fields. You are to generate a list of quiz questions from the document(s) with a difficutly of ${
-      difficulty || "Easy"
-    }.`,
-  };
-  const text2 = {
-    text: `You response should be in JSON as an array of the object below. Respond with ${
-      totalQuizQuestions || 5
-    } different questions.
-  {
-   \"id\": 1,
-   \"question\": \"\",
-   \"description\": \"\",
-   \"options\": {
-     \"a\": \"\",
-     \"b\": \"\",
-     \"c\": \"\",
-     \"d\": \"\"
-   },
-   \"answer\": \"\",
-  }`,
-  };
-
-  const filesBase64 = await Promise.all(
-    files.map(async (file) => {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      // return "data:" + file.type + ";base64," + buffer.toString("base64");
-      return buffer.toString("base64");
-    })
-  );
-
-  const filesData = filesBase64.map((b64, i) => ({
-    inlineData: {
-      mimeType: files[i].type,
-      data: b64,
-    },
-  }));
-
-  const data =
-    files.length > 0 ? filesData : [{ text: notes?.toString() || "No notes" }];
-
-  const body = {
-    contents: [{ role: "user", parts: [text1, ...data, text2] }],
-  };
-
-  const resp = await generativeModel.generateContentStream(body);
-
-  // Convert the response into a friendly text-stream
-  const stream = iteratorToStream(resp.stream);
-
-  return new StreamingTextResponse(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "Transfer-Encoding": "chunked",
-    },
-  });
 }

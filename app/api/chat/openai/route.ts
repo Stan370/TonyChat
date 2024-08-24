@@ -42,6 +42,9 @@ export async function POST(request: Request) {
 
     return new Response(JSON.stringify({ message: errorMessage }), {
       status: errorCode,
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
   }
 }

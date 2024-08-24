@@ -10,6 +10,7 @@ declare global {
         // ... other environment variables
         OPENAI_BASE_URL: string;
         OPENAI_ORG_ID: string;
+        GEMINI_API_KEY:string;
         AZURE_OPENAI_API_KEY: string;
         NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT: string;
         NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID: string;
@@ -33,6 +34,7 @@ declare global {
       OPENAI_BASE_URL,
       OPENAI_PROXY_URL,
       OPENAI_ORG_ID, 
+      GEMINI_API_KEY,
       AZURE_OPENAI_API_KEY,
       NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT,
       NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID,
@@ -45,6 +47,7 @@ declare global {
       vercelEnv: NEXT_PUBLIC_VERCEL_ENV,
       backendUrl: NEXT_PUBLIC_BACKEND_URL,
       openaiApiKey: OPENAI_API_KEY,
+      geminiKey:GEMINI_API_KEY,
       // ... other properties   
       openaiBaseUrl: OPENAI_BASE_URL,
       openaiProxyUrl: OPENAI_PROXY_URL,
