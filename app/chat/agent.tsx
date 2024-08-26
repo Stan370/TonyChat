@@ -13,7 +13,6 @@ export function createAgent(): Agent {
     id,
     name: `Agent ${id}`,
     content: 'This is the default agent content.',
-    config: agentConfig, // 将agentConfig添加到新创建的Agent中
   };
   agents[id] = newAgent;
   return newAgent;

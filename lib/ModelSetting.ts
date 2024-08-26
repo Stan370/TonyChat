@@ -1,5 +1,3 @@
-import { LLMID } from "@/types"
-
 /**
  * LLM 模型
  */
@@ -181,7 +179,6 @@ export interface ChatStreamPayload {
    */
   temperature: number;
   tool_choice?: string;
-  tools?: ChatCompletionTool[];
   /**
    * @title 控制生成文本中最高概率的单个令牌
    * @default 1
@@ -219,7 +216,7 @@ type ChatSettingLimits = {
   MAX_CONTEXT_LENGTH: number
 }
 
-export const CHAT_SETTING_LIMITS: Record<LLMID, ChatSettingLimits> = {
+export const CHAT_SETTING_LIMITS= {
   // ANTHROPIC MODELS
   "claude-2.1": {
     MIN_TEMPERATURE: 0.0,

@@ -57,11 +57,6 @@ const Chat = () => {
     setMessage(event.target.value);
   };
 
-  const handleKeyPress = (event) => {
-    if (event.key === 'Enter') {
-      sendMessage();
-    }
-  };
   return (
     
     <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
@@ -127,7 +122,6 @@ const Chat = () => {
             type="text"
             value={message}
             onChange={handleMessageChange}
-            onKeyPress={handleKeyPress}
             className="flex-1 p-2 border-2 border-gray-200 rounded-md"
             placeholder="Type your message..."
           />

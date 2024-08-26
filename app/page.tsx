@@ -27,11 +27,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <Sidebar />
-      {/* <div className="relative m-auto p-4">
-        <Carousel autoPlay={true}>
-          {slides}
-        </Carousel>      
-      </div> */}
+      
       <div>
 
       <section className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-20">
@@ -42,6 +38,11 @@ export default function Home() {
             <a href="/chat" className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">Chat Now</a>
             <a href="#" className="bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800">Bot Store</a>
           </div>
+          <div className="relative m-auto p-4">
+        <Carousel autoPlay={true}>
+          {slides}
+        </Carousel>      
+      </div>
         </div>
       </section>
 

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       console.log(chunk.choices[0].delta);
       process.stdout.write(chunk.choices[0]?.delta?.content || "");
     }
-    return response;
+    return ;
   } catch (error: any) {
     const errorMessage = error.error?.message || "An unexpected error occurred";
     const errorCode = error.status || 500;
@@ -42,9 +42,6 @@ export async function POST(request: Request) {
 
     return new Response(JSON.stringify({ message: errorMessage }), {
       status: errorCode,
-      headers: {
-        "Content-Type": "application/json",
-      },
     });
   }
 }

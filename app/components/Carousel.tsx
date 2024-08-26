@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "react-feather";
 
@@ -10,6 +9,7 @@ const Carousel = ({
   autoSlideInterval = 4000,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+
   const handleNextSlide = () => {
     let newSlide = currentSlide === slides.length - 1 ? 0 : currentSlide + 1;
     setCurrentSlide(newSlide);
@@ -21,36 +21,37 @@ const Carousel = ({
   };
 
   useEffect(() => {
-    if (!autoPlay) return () => clearInterval(slideInterval);
+    if (!autoPlay) return;
+
     const slideInterval = setInterval(handleNextSlide, autoSlideInterval);
     return () => clearInterval(slideInterval);
-  }, [currentSlide]);
+  }, [currentSlide, autoPlay, autoSlideInterval]);
 
   return (
-    <div className="overflow-hidden relative w-1/4 ">
+    <div className="overflow-hidden relative w-1/4">
       <div
         style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-        className="flex w-full  transition-transform duration-500 ease-in-out transform "
+        className="flex w-full transition-transform duration-500 ease-in-out transform"
       >
         {slides.map((slide, index) => (
-            <img
-              key={index}
-              className="flex-shrink-0 w-full md:min-h-96"
-              src={slide}
-              alt={`Slide ${index + 1}`}
-            />
+          <img
+            key={index}
+            className="flex-shrink-0 w-full md:min-h-96"
+            src={slide}
+            alt={`Slide ${index + 1}`}
+          />
         ))}
       </div>
 
       <div className="absolute flex justify-between items-center inset-0">
-        <button onClick={handlePrevSlide}>
+        <button onClick={handlePrevSlide} aria-label="Previous Slide">
           <ChevronLeft />
         </button>
-        <button onClick={handleNextSlide}>
+        <button onClick={handleNextSlide} aria-label="Next Slide">
           <ChevronRight />
         </button>
       </div>
-      <div className="absolute left-0 right-0 bottom-2 ">
+      <div className="absolute left-0 right-0 bottom-2">
         <div className="flex justify-center items-center gap-4">
           {slides.map((_slide, index) => (
             <div
@@ -68,4 +69,5 @@ const Carousel = ({
     </div>
   );
 };
+
 export default Carousel;
