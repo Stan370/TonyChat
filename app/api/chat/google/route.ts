@@ -1,15 +1,6 @@
 import { getServerConfig } from "@/config/server";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
-// Ensure the environment variable is correctly set and decoded
-const googleServiceKey = process.env.GOOGLE_SERVICE_KEY;
-if (!googleServiceKey) {
-  throw new Error("Missing GOOGLE_SERVICE_KEY environment variable.");
-}
-
-const credentials = JSON.parse(
-  Buffer.from(googleServiceKey, "base64").toString()
-);
 
 export async function POST(req: Request) {
   try {

@@ -5,8 +5,13 @@ import React, { useState, useEffect } from "react";
 // DarkSwitch component
 const DarkSwitch = () => {
   // State to track dark mode
-  const [darkMode, setDarkMode] = useState(false);
-
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined" ) {
+      return localStorage.getItem("theme") === "dark";
+    }
+    return false;
+  });
+  
   // Function to toggle dark mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -15,6 +20,9 @@ const DarkSwitch = () => {
   // Use effect to update the class on body based on dark mode state
   useEffect(() => {
     document.body.classList.toggle("dark", darkMode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("theme", darkMode ? "dark" : "light");
+    }
   }, [darkMode]);
 
   return (
