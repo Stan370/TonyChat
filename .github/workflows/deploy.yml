@@ -37,8 +37,7 @@ jobs:
         run: "npm install && npm run build" # 📝 Update the build command(s) if necessary
 
       - name: Upload to Deno Deploy
-        uses: denoland/deployctl@612f83df2b874c6908d68de5cf3f36a6538fa8f7 # v1
+        uses: denoland/deployctl@v1 # v1
         with:
           project: "sad-camel-61"
           entrypoint: "https://deno.land/std@0.217.0/http/file_server.ts" # 📝 Update the entrypoint if necessary
-          root: "out" # 📝 Update the root if necessary
