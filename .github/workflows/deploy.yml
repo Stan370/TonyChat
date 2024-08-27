@@ -40,4 +40,4 @@ jobs:
         uses: denoland/deployctl@v1 # v1
         with:
           project: "sad-camel-61"
-          entrypoint: "app/page.tsx" # 📝 Update the entrypoint if necessary
+          entrypoint: "./app/page.tsx" # 📝 Update the entrypoint if necessary

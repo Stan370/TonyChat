@@ -31,14 +31,19 @@ const Carousel = ({
     <div className="overflow-hidden relative w-1/4">
       <div
         style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-        className="flex w-full transition-transform duration-500 ease-in-out transform"
+        className="flex w-full transition-transform duration-500 ease-in-out transform" 
       >
         {slides.map((slide, index) => (
           <img
             key={index}
-            className="flex-shrink-0 w-full md:min-h-96"
+            className="flex-shrink-0 rounded-xl shadow hover:shadow-lg w-full md:min-h-96"
             src={slide}
             alt={`Slide ${index + 1}`}
+            onClick={() => {
+              if (index === 2) {
+                window.location.href = 'https://chatgpt.com/';
+              }
+            }}
           />
         ))}
       </div>
