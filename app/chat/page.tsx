@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Siderbar from "../components/Siderbar";
 import { OpenAIChatMessage, UserMessageContentPart } from "@/lib/ModelSetting";
-import OpenAI from "openai";
+import Image from 'next/image';
+import { supabaseClient } from "@/lib/supabase";
 
 const initialAgents:OpenAIChatMessage[] = [
+  {
+    role: "system",
+    name: "GPT-4",
+    content: "I am GPT-4, a large language model trained by OpenAI."
+  },
   {
     role: "system",
     name: "GPT Prompt builder",
@@ -15,33 +21,94 @@ const initialAgents:OpenAIChatMessage[] = [
   },
   {
     role: "system",
-    name:"books",
+    name: "Software Expert",
     content:
-      "I really enjoyed reading To Kill a Mockingbird, could you recommend me a book that is similar and tell me why?",
+    "You are an expert Software Development Engineer (SDE) with extensive experience in various programming languages, software architectures, and development methodologies. Your role is to assist with coding problems, system design, and best practices in software development. When asked a question, please follow this process:\n\n1. Understand the Problem: Clarify the requirements and constraints of the given task or problem.\n2. Provide a High-Level Solution: Outline a general approach to solving the problem.\n3. Detailed Implementation: If requested, provide code snippets or more detailed explanations of the solution.\n4. Best Practices: Highlight any relevant best practices, design patterns, or optimization techniques.\n5. Potential Issues: Discuss any potential challenges or edge cases that should be considered.\n6. Follow-up: Ask if there are any parts of the solution that need further clarification or expansion.\n\nPlease respond with 'Ready to assist with your software development needs. What problem can I help you with today?' to indicate you're prepared to begin.",
   },
 ];
 
   
 const Chat = () => {
-  const [message, setMessage] = useState<string>("Hi");
+  const [message, setMessage] = useState<string>("");
   const [selectedAgent, setSelectedAgent] = useState<OpenAIChatMessage>(initialAgents[0]);
-  const [conversations, setConversations] = useState<OpenAIChatMessage[]>(initialAgents);
-  let messageId = 0;           //Tod
+  const [conversations, setConversations] = useState<OpenAIChatMessage[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(scrollToBottom, [conversations]);
+
+  useEffect(() => {
+    // Load or create a new conversation when the component mounts
+    if (selectedAgent.name !== "GPT-4") {
+      loadOrCreateConversation();
+    }
+  }, [selectedAgent.name]);
+
+  const loadOrCreateConversation = async () => {
+    // TODO: Replace with actual user ID once authentication is implemented
+    const userId = "example-user-id";
+    
+    // Check if there's an ongoing conversation
+    const { data: existingConversation } = await supabaseClient
+      .from('conversations')
+      .select('id')
+      .eq('agent_id','6545b253-51d4-4453-a5b2-681a7c60051f')
+      .order('create_time', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existingConversation) {
+      setCurrentConversationId(existingConversation.id);
+      await loadConversationHistory(existingConversation.id);
+    } else {
+      const { data: newConversation } = await supabaseClient
+        .from('conversations')
+        .insert({ agent_id: selectedAgent.name })
+        .select()
+        .single();
+
+      if (newConversation) {
+        setCurrentConversationId(newConversation.id);
+      }
+    }
+  };
+
+  const loadConversationHistory = async (conversationId: string) => {
+    const { data: messages } = await supabaseClient
+      .from('Messages')
+      .select('role, content')
+      .eq('conversation_id', conversationId)
+      .order('create_time', { ascending: true });
+
+    if (messages) {
+      setConversations(messages.map(msg => ({
+        role: msg.role as "user" | "assistant" | "system",
+        content: msg.content
+      })));
+    }
+  };
 
   // Function to handle sending a message
   const sendMessage = async () => {
-    const log = document.getElementById('chat-log');
-  
-    if (message.trim()) {
-      setConversations([...conversations, 
-        { role: "user", content: message }
-      ]);
-  
+    if (!isWaitingForResponse && message.trim() && currentConversationId) {
+      setIsWaitingForResponse(true);
+      const userMessage: OpenAIChatMessage = { role: "user", content: message };
+      setConversations(prev => [...prev, userMessage]);
       try {
         // Call API route and add AI message to conversations
         const response = await fetch("/api/chat/openai", {
           method: "POST",
-          body: message,
+          body: JSON.stringify({
+            message,
+            conversationId: currentConversationId,
+            agentId: selectedAgent.name
+          }),
+          headers: { "Content-Type": "application/json" },
         });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -51,56 +118,126 @@ const Chat = () => {
         console.log(data);
   
         // Add the assistant's response to the conversation
-        setConversations([
-          ...conversations,
-          { role: "assistant", content: data },
-        ]);
+        const assistantMessage: OpenAIChatMessage = { role: "assistant", content: data };
+        setConversations(prev => [...prev, assistantMessage]);
+
+        // Persist assistant message
+        if (selectedAgent.name!=="GPT-4"){
+          await supabaseClient.from('Messages').insert({
+            conversation_id: currentConversationId,
+            role: "assistant",
+            content: data,
+            content_type: "text"
+          });
+        }
       } catch (error) {
         console.error("Error during fetch:", error);
-        if (error instanceof TypeError && error.cause?.name === 'ConnectTimeoutError') {
+        if (error instanceof TypeError && (error.cause as { name?: string })?.name === 'ConnectTimeoutError') {
           console.error("Connection timeout error. Please check your network connection.");
-          // You can also update the UI to show a message to the user
-          setConversations([
-            ...conversations,
+          setConversations(prevConversations => [
+            ...prevConversations,
             { role: "assistant", content: "Connection timeout error. Please check your network connection." },
           ]);
         } else {
-          setConversations([
-            ...conversations,
+          setConversations(prevConversations => [
+            ...prevConversations,
             { role: "assistant", content: "An error occurred while sending the message. Please check your OPENAI API KEY in the setting page." },
           ]);
         }
+      } finally {
+        setIsWaitingForResponse(false);
+        setMessage("");
       }
-      setMessage("");
     }
   };
+
   // Message input handler
   const handleMessageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(event.target.value);
   };
 
   return (
-    
-    <div className="relative min-h-screen flex flex-row  bg-gray-50 dark:bg-[#17171a] dark:text-red-50  ">
+    <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">
       <Siderbar></Siderbar>
       
-      <div className="flex flex-col overflow-y-auto">
-        <div className="flex h-16 w-full flex-shrink-0"> </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4">
+          <div id="chat-log" className="max-w-3xl mx-auto space-y-4">
+            {conversations.map((message, index) => (
+              <div 
+                key={index} 
+                className={`flex ${message.role === 'user' ? 'justify-start' : 'justify-end'}`}
+              >
+                <div className={`flex ${message.role === 'user' ? 'flex-row' : 'flex-row-reverse'} items-start max-w-[80%]`}>
+                  <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden bg-gray-300 mr-3">
+                    <Image
+                      src={message.role === 'user' ? '/2.jpg' : '/ai-avatar.png'}
+                      alt={message.role === 'user' ? 'User Avatar' : 'AI Avatar'}
+                      width={40}
+                      height={40}
+                    />
+                  </div>
+                  <div 
+                    className={`p-3 rounded-lg ${
+                      message.role === 'user' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100'
+                    }`}
+                  >
+                    {Array.isArray(message.content)
+                      ? message.content.map((part: UserMessageContentPart, partIndex) => (
+                          <span key={partIndex}>
+                            {part.type === "text" && <span>{part.text}</span>}
+                            {part.type === "image_url" && (
+                              <img
+                                src={part.image_url.url}
+                                alt="Content"
+                                className="my-2 max-w-full rounded"
+                              />
+                            )}
+                          </span>
+                        ))
+                      : message.content}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={message}
+                onChange={handleMessageChange}
+                className="flex-1 p-2 border-2 border-gray-200 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                placeholder="Type your message..."
+                disabled={isWaitingForResponse}
+              />
+              <button
+                onClick={sendMessage}
+                className={`ml-2 px-4 py-2 bg-blue-500 text-white rounded-md transition duration-150 ease-in-out ${
+                  isWaitingForResponse ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+                }`}
+                disabled={isWaitingForResponse}
+              >
+                {isWaitingForResponse ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="group border relative  active:opacity-90 ">
-        <a
-          href="/chat"
-          className="flex items-center gap-2 p-2"
-        >
+      <div className="group border relative active:opacity-90">
+        <a href="/chat" className="flex items-center gap-2 p-2">
           <div className="relative min-w-48 h-10 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
             Agent 1
           </div>
         </a>
-        <a
-          href="/chat"
-          className="flex items-center gap-2 p-2"
-        >
+        <a href="/chat" className="flex items-center gap-2 p-2">
           <div className="relative min-w-48 h-10 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
             Agent 2
           </div>
@@ -115,47 +252,10 @@ const Chat = () => {
             data-state="closed"
           >
           </button>
-          
-        </div>
-      </div>
-      <div className="p-4 max-w-3xl mx-auto bg-white shadow-md rounded-lg">
-        <div className="mb-4 overflow-y-auto">
-          <div id="chat-log" className="flex-1">
-          {conversations.map((text, index) => (
-            <div id={`log-${index}`} key={index} className="my-4 leading-1.5 p-4 border-gray-200 bg-gray-100 rounded-e-xl rounded-es-xl dark:bg-gray-700">
-                {Array.isArray(text.content)
-                  ? text.content.map((part: UserMessageContentPart, partIndex) => (
-                      <span key={partIndex}>{part.type === "text" && <span>{part.text}</span>}
-                      {part.type === "image_url" && (
-                        <img
-                          src={part.image_url.url}
-                          alt="Content"
-                          className="my-2 max-w-full rounded"
-                        />
-                      )}</span>
-                    ))
-                  : text.content}
-            </div>
-          ))}
-          </div>
-        </div>
-        <div className="input-box flex items-center">
-          <input
-            type="text"
-            value={message}
-            onChange={handleMessageChange}
-            className="flex-1 p-2 border-2 border-gray-200 rounded-md"
-            placeholder="Type your message..."
-          />
-          <button
-            onClick={sendMessage}
-            className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-md"
-          >
-            Send
-          </button>
         </div>
       </div>
     </div>
   );
 };
+
 export default Chat;
