@@ -16,6 +16,8 @@ declare global {
         NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID: string;
         NEXT_PUBLIC_AZURE_GPT_45_VISION_ID: string;
         NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID: string;
+        NEXT_PUBLIC_SUPABASE_URL: string;
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: string;
       }
     }
   }
@@ -40,6 +42,8 @@ declare global {
       NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID,
       NEXT_PUBLIC_AZURE_GPT_45_VISION_ID,
       NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
+      NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY,
     } = process.env;
   
     return {
@@ -57,9 +61,10 @@ declare global {
       azureGpt35TurboId: NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID,
       azureGpt45VisionId: NEXT_PUBLIC_AZURE_GPT_45_VISION_ID,
       azureGpt45TurboId: NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
+      supabaseUrl: NEXT_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: NEXT_PUBLIC_SUPABASE_ANON_KEY,
     };
   };
-
   // const express = require("express");
   // const bodyParser = require("body-parser");
   // const sqlite3 = require("sqlite3").verbose();

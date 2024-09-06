@@ -1,6 +1,8 @@
 import { getServerConfig } from "@/config/server";
 import { ServerRuntime } from "next";
 import OpenAI from "openai";
+import { OpenAIStream, StreamingTextResponse } from 'ai';
+
 
 export const runtime: ServerRuntime = "edge";
 

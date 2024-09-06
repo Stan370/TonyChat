@@ -31,27 +31,49 @@ const Chat = () => {
   // Function to handle sending a message
   const sendMessage = async () => {
     const log = document.getElementById('chat-log');
-
+  
     if (message.trim()) {
       setConversations([...conversations, 
-        { role: "user", content: message }]);
-
-      // Call API route and add AI message to conversations
-      const response = await fetch("/api/chat/openai", {
-        method: "POST",
-        body: message,
-      });
-      const data = await response.json();
-      if (data) {
+        { role: "user", content: message }
+      ]);
+  
+      try {
+        // Call API route and add AI message to conversations
+        const response = await fetch("/api/chat/openai", {
+          method: "POST",
+          body: message,
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const data = await response.json();
+        console.log(data);
+  
+        // Add the assistant's response to the conversation
         setConversations([
           ...conversations,
-          { role: "assistant", content: data},
+          { role: "assistant", content: data },
         ]);
+      } catch (error) {
+        console.error("Error during fetch:", error);
+        if (error instanceof TypeError && error.cause?.name === 'ConnectTimeoutError') {
+          console.error("Connection timeout error. Please check your network connection.");
+          // You can also update the UI to show a message to the user
+          setConversations([
+            ...conversations,
+            { role: "assistant", content: "Connection timeout error. Please check your network connection." },
+          ]);
+        } else {
+          setConversations([
+            ...conversations,
+            { role: "assistant", content: "An error occurred while sending the message. Please check your OPENAI API KEY in the setting page." },
+          ]);
+        }
       }
-      // Reset the message input
       setMessage("");
-    };
-  }
+    }
+  };
   // Message input handler
   const handleMessageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(event.target.value);
