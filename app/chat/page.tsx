@@ -6,7 +6,7 @@ import { OpenAIChatMessage, UserMessageContentPart } from "@/lib/ModelSetting";
 import Image from 'next/image';
 import { supabaseClient } from "@/lib/supabase";
 
-const initialAgents:OpenAIChatMessage[] = [
+const initialAgents: OpenAIChatMessage[] = [
   {
     role: "system",
     name: "GPT-4",
@@ -23,16 +23,16 @@ const initialAgents:OpenAIChatMessage[] = [
     role: "system",
     name: "Software Expert",
     content:
-    "You are an expert Software Development Engineer (SDE) with extensive experience in various programming languages, software architectures, and development methodologies. Your role is to assist with coding problems, system design, and best practices in software development. When asked a question, please follow this process:\n\n1. Understand the Problem: Clarify the requirements and constraints of the given task or problem.\n2. Provide a High-Level Solution: Outline a general approach to solving the problem.\n3. Detailed Implementation: If requested, provide code snippets or more detailed explanations of the solution.\n4. Best Practices: Highlight any relevant best practices, design patterns, or optimization techniques.\n5. Potential Issues: Discuss any potential challenges or edge cases that should be considered.\n6. Follow-up: Ask if there are any parts of the solution that need further clarification or expansion.\n\nPlease respond with 'Ready to assist with your software development needs. What problem can I help you with today?' to indicate you're prepared to begin.",
+      "You are an expert Software Development Engineer (SDE) with extensive experience in various programming languages, software architectures, and development methodologies. Your role is to assist with coding problems, system design, and best practices in software development. When asked a question, please follow this process:\n\n1. Understand the Problem: Clarify the requirements and constraints of the given task or problem.\n2. Provide a High-Level Solution: Outline a general approach to solving the problem.\n3. Detailed Implementation: If requested, provide code snippets or more detailed explanations of the solution.\n4. Best Practices: Highlight any relevant best practices, design patterns, or optimization techniques.\n5. Potential Issues: Discuss any potential challenges or edge cases that should be considered.\n6. Follow-up: Ask if there are any parts of the solution that need further clarification or expansion.\n\nPlease respond with 'Ready to assist with your software development needs. What problem can I help you with today?' to indicate you're prepared to begin.",
   },
 ];
 
-  
+
 const Chat = () => {
   const [message, setMessage] = useState<string>("");
   const [selectedAgent, setSelectedAgent] = useState<OpenAIChatMessage>(initialAgents[0]);
   const [conversations, setConversations] = useState<OpenAIChatMessage[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);//from db
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -48,57 +48,82 @@ const Chat = () => {
       loadOrCreateConversation();
     }
   }, [selectedAgent.name]);
-
   const loadOrCreateConversation = async () => {
-    // TODO: Replace with actual user ID once authentication is implemented
-    const userId = "example-user-id";
-    
-    // Check if there's an ongoing conversation
-    const { data: existingConversation } = await supabaseClient
-      .from('conversations')
-      .select('id')
-      .eq('agent_id','6545b253-51d4-4453-a5b2-681a7c60051f')
-      .order('create_time', { ascending: false })
-      .limit(1)
-      .single();
+    try {
+      // TODO: Replace with actual user ID once authentication is implemented
+      const userId = "example-user-id";
 
-    if (existingConversation) {
-      setCurrentConversationId(existingConversation.id);
-      await loadConversationHistory(existingConversation.id);
-    } else {
-      const { data: newConversation } = await supabaseClient
+      // Check if there's an ongoing conversation
+      const { data: existingConversation, error: existingConversationError } = await supabaseClient
         .from('conversations')
-        .insert({ agent_id: selectedAgent.name })
-        .select()
+        .select('id')
+        .eq('agent_id', '6545b253-51d4-4453-a5b2-681a7c60051f')
+        .order('create_time', { ascending: false })
+        .limit(1)
         .single();
 
-      if (newConversation) {
-        setCurrentConversationId(newConversation.id);
+      if (existingConversationError) throw existingConversationError;
+
+      if (existingConversation) {
+        setCurrentConversationId(existingConversation.id);
+        await loadConversationHistory(existingConversation.id);
+      } else {
+        const { data: newConversation, error: newConversationError } = await supabaseClient
+          .from('conversations')
+          .insert({ agent_id: selectedAgent.name })
+          .select()
+          .single();
+
+        if (newConversationError) throw newConversationError;
+
+        if (newConversation) {
+          setCurrentConversationId(newConversation.id);
+        } else {
+          throw new Error("Failed to create new conversation");
+        }
       }
+    } catch (error) {
+      console.error("Error in loadOrCreateConversation:", error);
+      // You might want to set an error state here to display to the user
     }
   };
 
   const loadConversationHistory = async (conversationId: string) => {
-    const { data: messages } = await supabaseClient
-      .from('Messages')
-      .select('role, content')
-      .eq('conversation_id', conversationId)
-      .order('create_time', { ascending: true });
+    try {
+      const { data: messages, error } = await supabaseClient
+        .from('Messages')
+        .select('role, content')
+        .eq('conversation_id', conversationId)
+        .order('create_time', { ascending: true });
 
-    if (messages) {
-      setConversations(messages.map(msg => ({
-        role: msg.role as "user" | "assistant" | "system",
-        content: msg.content
-      })));
+      if (error) throw error;
+
+      if (messages) {
+        setConversations(messages.map(msg => ({
+          role: msg.role as "user" | "assistant" | "system",
+          content: msg.content
+        })));
+      } else {
+        console.warn("No messages found for conversation:", conversationId);
+      }
+    } catch (error) {
+      console.error("Error in loadConversationHistory:", error);
+      // You might want to set an error state here to display to the user
     }
   };
 
   // Function to handle sending a message
   const sendMessage = async () => {
-    if (!isWaitingForResponse && message.trim() && currentConversationId) {
-      setIsWaitingForResponse(true);
-      const userMessage: OpenAIChatMessage = { role: "user", content: message };
-      setConversations(prev => [...prev, userMessage]);
+    if (!message.trim() || isWaitingForResponse) return;
+
+    const userMessage: OpenAIChatMessage = { role: "user", content: message };
+
+    // Immediately update UI with user message
+    setConversations(prev => [...prev, userMessage]);
+    setMessage(""); // Clear input field
+    setIsWaitingForResponse(true);
+
+    if (currentConversationId) {
       try {
         // Call API route and add AI message to conversations
         const response = await fetch("/api/chat/openai", {
@@ -113,16 +138,16 @@ const Chat = () => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-  
+
         const data = await response.json();
         console.log(data);
-  
+
         // Add the assistant's response to the conversation
         const assistantMessage: OpenAIChatMessage = { role: "assistant", content: data };
         setConversations(prev => [...prev, assistantMessage]);
 
         // Persist assistant message
-        if (selectedAgent.name!=="GPT-4"){
+        if (selectedAgent.name !== "GPT-4") {
           await supabaseClient.from('Messages').insert({
             conversation_id: currentConversationId,
             role: "assistant",
@@ -159,44 +184,43 @@ const Chat = () => {
   return (
     <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">
       <Siderbar></Siderbar>
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4">
           <div id="chat-log" className="max-w-3xl mx-auto space-y-4">
             {conversations.map((message, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`flex ${message.role === 'user' ? 'justify-start' : 'justify-end'}`}
               >
                 <div className={`flex ${message.role === 'user' ? 'flex-row' : 'flex-row-reverse'} items-start max-w-[80%]`}>
                   <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden bg-gray-300 mr-3">
                     <Image
-                      src={message.role === 'user' ? '/2.jpg' : '/ai-avatar.png'}
+                      src={message.role === 'user' ? '/user.jpg' : '/ai-avatar.png'}
                       alt={message.role === 'user' ? 'User Avatar' : 'AI Avatar'}
                       width={40}
                       height={40}
                     />
                   </div>
-                  <div 
-                    className={`p-3 rounded-lg ${
-                      message.role === 'user' 
-                        ? 'bg-blue-500 text-white' 
+                  <div
+                    className={`p-3 rounded-lg ${message.role === 'user'
+                        ? 'bg-blue-500 text-white'
                         : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100'
-                    }`}
+                      }`}
                   >
                     {Array.isArray(message.content)
                       ? message.content.map((part: UserMessageContentPart, partIndex) => (
-                          <span key={partIndex}>
-                            {part.type === "text" && <span>{part.text}</span>}
-                            {part.type === "image_url" && (
-                              <img
-                                src={part.image_url.url}
-                                alt="Content"
-                                className="my-2 max-w-full rounded"
-                              />
-                            )}
-                          </span>
-                        ))
+                        <span key={partIndex}>
+                          {part.type === "text" && <span>{part.text}</span>}
+                          {part.type === "image_url" && (
+                            <img
+                              src={part.image_url.url}
+                              alt="Content"
+                              className="my-2 max-w-full rounded"
+                            />
+                          )}
+                        </span>
+                      ))
                       : message.content}
                   </div>
                 </div>
@@ -205,7 +229,7 @@ const Chat = () => {
             <div ref={messagesEndRef} />
           </div>
         </div>
-        
+
         <div className="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center space-x-2">
@@ -219,12 +243,18 @@ const Chat = () => {
               />
               <button
                 onClick={sendMessage}
-                className={`ml-2 px-4 py-2 bg-blue-500 text-white rounded-md transition duration-150 ease-in-out ${
-                  isWaitingForResponse ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
-                }`}
+                className={`ml-2 px-4 py-2 bg-blue-500 text-white rounded-md transition duration-150 ease-in-out  ${isWaitingForResponse ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+                  }`}
                 disabled={isWaitingForResponse}
               >
-                {isWaitingForResponse ? 'Sending...' : 'Send'}
+                {isWaitingForResponse ? (
+                  <svg className="animate-spin h-6 w-9" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <span>Send</span>
+                )}
               </button>
             </div>
           </div>

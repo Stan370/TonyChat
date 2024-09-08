@@ -3,7 +3,7 @@ import Carousel from "./components/Carousel";
 import Sidebar from "./components/Siderbar";
 
 export default function Home() {
-  const slides = ["/1.jpg", "/2.jpg", "/3.jpg"];
+  const slides = ["/1.jpg", "/user.jpg", "/3.jpg"];
 
   return (
     <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">

@@ -49,5 +49,3 @@ export async function testSupabaseConnection() {
   }
 }
 
-// You can call this function when your app initializes
-testSupabaseConnection();
