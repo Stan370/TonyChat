@@ -1,67 +1,55 @@
 import { getServerConfig } from "@/config/server";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
-  try {
-    // Fetch server configuration
-    const config = await getServerConfig();
-    
-    // Initialize Google Generative AI with the provided credentials
-    const genAI = new GoogleGenerativeAI(config.geminiKey);
-    const modelG = genAI.getGenerativeModel({ model: "gemini-pro" });
+	const encoder = new TextEncoder();
+	const stream = new TransformStream();
+	const writer = stream.writable.getWriter();
 
-    // Define the generation configuration
-    const generationConfig = {
-      temperature: 0.8,
-      topK: 0.9,
-      topP: 1,
-      maxOutputTokens: 2048,
-    };
+	try {
+		const config = await getServerConfig();
+		const { message, model } = await req.json();
+		
+		const genAI = new GoogleGenerativeAI(config.geminiKey);
+		const modelG = genAI.getGenerativeModel({ model: model || "gemini-1.5-flash" });
 
-    // Define the safety settings for content filtering
-    const safetySettings = [
-      {
-        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-    ];
+		const chat = modelG.startChat({
+			generationConfig: {
+				temperature: 0.8,
+				topK: 0.9,
+				topP: 1,
+				maxOutputTokens: 2048,
+			},
+			safetySettings: [
+				{
+					category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+					threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+				},
+				// ... other safety settings ...
+			],
+		});
 
-    // Start a chat session with the generative AI model
-    const chat = modelG.startChat({
-      generationConfig,
-      safetySettings,  // Pass safety settings if needed
-    });
+		const result = await chat.sendMessage(message);
+		const response = await result.response;
 
-    // Extract messages from the request
-    const { messages } = await req.json();
+		// Stream the response
+		for (const chunk of response.text().split(' ')) {
+			await writer.write(encoder.encode(`data: ${JSON.stringify({ text: chunk + ' ' })}\n\n`));
+		}
+	} catch (error: any) {
+		console.error('Error in Google AI chat:', error);
+		await writer.write(encoder.encode(`data: ${JSON.stringify({ error: error.message })}\n\n`));
+	} finally {
+		await writer.close();
+	}
 
-    // Send the message to the model and await the response
-    const result = await chat.sendMessage(messages);
-    const response = await result.response;
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
-    });
-  } catch (error: any) {
-    const errorMessage = error.message || "An unexpected error occurred";
-    const errorCode = error.status || 500;
-    console.error(error);
-
-    return new Response(JSON.stringify({ message: errorMessage }), {
-      status: errorCode,
-    });
-  }
+	return new Response(stream.readable, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive',
+		},
+	});
 }
