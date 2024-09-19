@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     const openai = new OpenAI({
       apiKey: config.openaiApiKey,
-      baseURL: config.openaiBaseUrl || config.openaiProxyUrl,
+      baseURL: config.openaiProxyUrl,
     });
 
     const response = await openai.chat.completions.create(
