@@ -17,10 +17,6 @@ export default function Home() {
           property="og:title"
           content="TonyChat - Your Personal and Business Chatbot"
         />
-        <meta
-          property="og:description"
-          content="TonyChat is an open-source, multifunctional Chatbot suitable for both personal and business purposes. It allows for customized chatbot deployment, easy model fine-tuning, and ensures safety and privacy."
-        />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/T_icon.png" />
         <meta property="og:url" content="https://www.tonychat.com" />
