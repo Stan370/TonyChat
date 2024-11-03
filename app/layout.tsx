@@ -1,16 +1,13 @@
-import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Head from 'next/head'
+import  { Metadata } from 'next'
+import defaultMetadata from './metadata'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const metadata: Metadata = defaultMetadata
 
-
-export const metadata: Metadata = {
-  title: 'TonyChat APP',
-  description: 'Offer Open-Source customized Agents  The Future of Self-Running AI',
-}
 
 export default function RootLayout({
   children,
@@ -31,6 +28,13 @@ export default function RootLayout({
           media="(prefers-color-scheme: light)"
         />
         <link rel="icon" href="/favicon.ico?v=1" />
+        <link
+          rel="preload"
+          href="/fonts/your-main-font.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
       </Head>
     
       <body className={inter.className}>{children}</body>
