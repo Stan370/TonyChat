@@ -1,3 +1,4 @@
+# Tonychat
 TonyChat is a open-source multifunctional Chatbot, which you can use for your personal and business purpose safely. It supports customized chatbot deploy, easy fine tuning your models, safety and privacy. The platform is designed to make it easy for anyone to find, share, and use prompts to develop AI applications. 
 
 ![Homepage](home.png)
