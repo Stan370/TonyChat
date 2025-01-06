@@ -21,17 +21,23 @@ export async function POST(request: Request) {
       apiKey: config.anthropicApiKey,
     });
 
-    const stream = await anthropic.completions.create({
-      model: model || "claude-2",
-      max_tokens_to_sample: 300,
-      prompt: `Human: ${message}\n\nAssistant:`,
-      stream: true,
+    const response = await anthropic.messages.create({
+      model: model || "claude-3-sonnet-20240229",
+      max_tokens: 4096,
+      temperature: 0.7,
+      messages: [{
+        role: 'user',
+        content: message
+      }],
+      stream: true
     });
 
-    for await (const completion of stream) {
-      await writer.write(
-        encoder.encode(`data: ${JSON.stringify({ text: completion.completion })}\n\n`)
-      );
+    for await (const chunk of response) {
+      if (chunk.type === 'content_block_delta') {
+        await writer.write(
+          encoder.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`)
+        );
+      }
     }
   } catch (error: any) {
     console.error('Error in Claude chat:', error);

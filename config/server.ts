@@ -17,11 +17,30 @@ declare global {
         NEXT_PUBLIC_AZURE_GPT_45_VISION_ID: string;
         NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID: string;
         ANTHROPIC_API_KEY: string;
+        GITHUB_TOKEN: string;
       }
     }
   }
   
-  export const getServerConfig = () => {
+  export interface ServerConfig {
+    nodeEnv: string;
+    vercelEnv: string;
+    backendUrl: string;
+    openaiApiKey: string;
+    geminiKey: string;
+    openaiBaseUrl: string;
+    openaiProxyUrl: string;
+    openaiOrgId: string;
+    azureOpenaiApiKey: string;
+    azureOpenaiEndpoint: string;
+    azureGpt35TurboId: string;
+    azureGpt45VisionId: string;
+    azureGpt45TurboId: string;
+    anthropicApiKey: string;
+    githubToken: string;
+  }
+
+  export async function getServerConfig(): Promise<ServerConfig> {
     if (typeof process === 'undefined') {
       throw new Error('[Server Config] you are importing a server-only module outside of server');
     }
@@ -42,6 +61,7 @@ declare global {
       NEXT_PUBLIC_AZURE_GPT_45_VISION_ID,
       NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
       ANTHROPIC_API_KEY,
+      GITHUB_TOKEN,
     } = process.env;
   
     return {
@@ -60,6 +80,7 @@ declare global {
       azureGpt45VisionId: NEXT_PUBLIC_AZURE_GPT_45_VISION_ID,
       azureGpt45TurboId: NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
       anthropicApiKey: ANTHROPIC_API_KEY,
+      githubToken: GITHUB_TOKEN || '',
     };
   };
   // const express = require("express");
@@ -109,4 +130,4 @@ declare global {
   // app.listen(port, () => {
   //   console.log(`Server is running on http://localhost:${port}`);
   // });
-  
+
