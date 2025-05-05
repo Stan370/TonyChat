@@ -1,5 +1,5 @@
 import { getServerConfig } from "@/config/server";
-import { Octokit } from "@octokit/rest";
+import { Octokit } from "@octokit/core";
 import Anthropic from '@anthropic-ai/sdk';
 
 export const runtime = 'edge';
@@ -7,12 +7,13 @@ export const runtime = 'edge';
 async function getRepoContents(owner: string, repo: string, path: string = '') {
   const config = await getServerConfig();
   const octokit = new Octokit({ auth: config.githubToken });
-  
-  const response = await octokit.repos.getContent({
-    owner,
-    repo,
-    path,
-  });
+  const response = await octokit.request('GET /repos/{owner}/{repo}/actions/secrets/public-key', {
+    owner: 'myowner',
+    repo: 'myrepo',
+    headers: {
+      'X-GitHub-Api-Version': '2025-11-28'
+    }
+  })
 
   return response.data;
 }

@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
     "@google/generative-ai": "^0.17.0",
+    "@octokit/core": "^6.1.5",
     "@supabase/supabase-js": "^2.45.3",
     "ai": "^2.2.35",
     "bufferutil": "^4.0.8",

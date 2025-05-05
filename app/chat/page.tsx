@@ -264,12 +264,12 @@ const Chat = () => {
       <div className="group border relative active:opacity-90">
         <a href="/chat" className="flex items-center gap-2 p-2">
           <div className="relative min-w-48 h-10 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
-            Agent 1
+            AgentGPT
           </div>
         </a>
         <a href="/chat" className="flex items-center gap-2 p-2">
           <div className="relative min-w-48 h-10 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
-            Agent 2
+            Claude
           </div>
         </a>
         <div className="absolute bottom-0 right-0 top-0 items-center gap-1.5 pr-2 flex">
