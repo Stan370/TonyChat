@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     for await (const chunk of response) {
       if (chunk.type === 'content_block_delta') {
         await writer.write(
-          encoder.encode(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`)
+          encoder.encode(`data: ${JSON.stringify({ text: chunk.delta })}\n\n`)
         );
       }
     }
