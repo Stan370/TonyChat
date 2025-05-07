@@ -1,28 +1,29 @@
 import { getServerConfig } from "@/config/server";
-import { Octokit } from "@octokit/core";
-import Anthropic from '@anthropic-ai/sdk';
 
 export const runtime = 'edge';
 
 async function getRepoContents(owner: string, repo: string, path: string = '') {
   const config = await getServerConfig();
-  const octokit = new Octokit({ auth: config.githubToken });
-  const response = await octokit.request('GET /repos/{owner}/{repo}/actions/secrets/public-key', {
-    owner: 'myowner',
-    repo: 'myrepo',
+  const response = await fetch(`${config.laravelApiUrl}/api/repo/contents`, {
+    method: 'POST',
     headers: {
-      'X-GitHub-Api-Version': '2025-11-28'
-    }
-  })
-
-  return response.data;
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.laravelApiToken}`
+    },
+    body: JSON.stringify({ owner, repo, path })
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch repo contents');
+  }
+  
+  return response.json();
 }
 
 async function buildRepoContext(owner: string, repo: string) {
   const files = await getRepoContents(owner, repo);
   let context = `Repository: ${owner}/${repo}\n\n`;
   
-  // Build file structure context
   if (Array.isArray(files)) {
     context += "File structure:\n";
     for (const file of files) {
@@ -42,42 +43,40 @@ export async function POST(request: Request) {
     const config = await getServerConfig();
     const { message, owner, repo, path } = await request.json();
 
-    const anthropic = new Anthropic({
-      apiKey: config.anthropicApiKey,
-    });
-
     // Get repository context
     const repoContext = await buildRepoContext(owner, repo);
 
-    const systemPrompt = `You are a helpful AI assistant specialized in analyzing GitHub repositories.
-Current repository: ${owner}/${repo}
-Your task is to help understand the codebase, explain game mechanics, and suggest code modifications.
-When referencing files, always include the full path.
-${repoContext}`;
-
-    const response = await anthropic.messages.create({
-      model: "claude-3-sonnet-20240229",
-      max_tokens: 4096,
-      temperature: 0.7,
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
-      stream: true
+    const response = await fetch(`${config.laravelApiUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.laravelApiToken}`
+      },
+      body: JSON.stringify({
+        message,
+        owner,
+        repo,
+        path,
+        context: repoContext
+      })
     });
 
-    for await (const chunk of response) {
-      if (chunk.type === 'content_block_delta') {
-        await writer.write(
-          encoder.encode(`data: ${JSON.stringify({ text: chunk.delta })}\n\n`)
-        );
-      }
+    if (!response.ok) {
+      throw new Error('Failed to get chat response');
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      await writer.write(
+        encoder.encode(`data: ${JSON.stringify({ text: new TextDecoder().decode(value) })}\n\n`)
+      );
     }
   } catch (error: any) {
     console.error('Error in Repo chat:', error);

@@ -18,6 +18,8 @@ declare global {
         NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID: string;
         ANTHROPIC_API_KEY: string;
         GITHUB_TOKEN: string;
+        LARAVEL_API_URL: string;
+        LARAVEL_API_TOKEN: string;
       }
     }
   }
@@ -38,6 +40,8 @@ declare global {
     azureGpt45TurboId: string;
     anthropicApiKey: string;
     githubToken: string;
+    laravelApiUrl: string;
+    laravelApiToken: string;
   }
 
   export async function getServerConfig(): Promise<ServerConfig> {
@@ -62,6 +66,8 @@ declare global {
       NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
       ANTHROPIC_API_KEY,
       GITHUB_TOKEN,
+      LARAVEL_API_URL,
+      LARAVEL_API_TOKEN,
     } = process.env;
   
     return {
@@ -81,6 +87,8 @@ declare global {
       azureGpt45TurboId: NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
       anthropicApiKey: ANTHROPIC_API_KEY,
       githubToken: GITHUB_TOKEN || '',
+      laravelApiUrl: LARAVEL_API_URL || 'http://localhost:8000',
+      laravelApiToken: LARAVEL_API_TOKEN || '',
     };
   };
   // const express = require("express");
