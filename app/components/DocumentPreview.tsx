@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from "@/components/ui/button"
 import { Textarea } from './ui/textarea';
 
 
@@ -25,10 +24,10 @@ const DocumentPreview: React.FC<Props> = ({ content }) => {
 
   return (
     <div>
-      <Textarea  className="min-h-64" readOnly value={content}  />
+      <textarea  className="min-h-64" readOnly value={content}  />
       <div className='flex justify-between mt-4'>
-        <Button onClick={handleCopyContent}>Copy to Clipboard</Button>
-        <Button onClick={handleDownload}>Download Document</Button>
+        <button onClick={handleCopyContent}>Copy to Clipboard</button>
+        <button onClick={handleDownload}>Download Document</button>
       </div>
     </div>
   );

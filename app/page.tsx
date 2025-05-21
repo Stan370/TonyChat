@@ -134,7 +134,7 @@ export default function Home() {
                 <h3 className="text-lg font-semibold mb-2">Community</h3>
                 <ul className="text-gray-400">
                   <li>
-                    <a href="#" className="hover:text-white">
+                    <a href="https://github.com/Stan370/TonyChat" className="hover:text-white">
                       GitHub
                     </a>
                   </li>
