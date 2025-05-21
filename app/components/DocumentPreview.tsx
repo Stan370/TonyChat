@@ -1,5 +1,4 @@
 import React from 'react';
-import { Textarea } from './ui/textarea';
 
 
 type Props = {

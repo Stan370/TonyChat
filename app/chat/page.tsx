@@ -237,6 +237,12 @@ const Chat = () => {
                 type="text"
                 value={message}
                 onChange={handleMessageChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !isWaitingForResponse) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
                 className="flex-1 p-2 border-2 border-gray-200 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                 placeholder="Type your message..."
                 disabled={isWaitingForResponse}

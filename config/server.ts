@@ -20,6 +20,7 @@ declare global {
         GITHUB_TOKEN: string;
         LARAVEL_API_URL: string;
         LARAVEL_API_TOKEN: string;
+        NEXT_PUBLIC_SUPABASE_URL: string;
       }
     }
   }
@@ -42,6 +43,7 @@ declare global {
     githubToken: string;
     laravelApiUrl: string;
     laravelApiToken: string;
+    supabaseUrl: string;
   }
 
   export async function getServerConfig(): Promise<ServerConfig> {
@@ -68,6 +70,7 @@ declare global {
       GITHUB_TOKEN,
       LARAVEL_API_URL,
       LARAVEL_API_TOKEN,
+      NEXT_PUBLIC_SUPABASE_URL,
     } = process.env;
   
     return {
@@ -78,7 +81,7 @@ declare global {
       geminiKey:GEMINI_API_KEY,
       // ... other properties   
       openaiBaseUrl: OPENAI_BASE_URL,
-      openaiProxyUrl: OPENAI_PROXY_URL,
+      openaiProxyUrl: OPENAI_PROXY_URL|| '',
       openaiOrgId: OPENAI_ORG_ID,
       azureOpenaiApiKey: AZURE_OPENAI_API_KEY,
       azureOpenaiEndpoint: NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT,
@@ -89,6 +92,7 @@ declare global {
       githubToken: GITHUB_TOKEN || '',
       laravelApiUrl: LARAVEL_API_URL || 'http://localhost:8000',
       laravelApiToken: LARAVEL_API_TOKEN || '',
+      supabaseUrl: NEXT_PUBLIC_SUPABASE_URL || '',
     };
   };
   // const express = require("express");
