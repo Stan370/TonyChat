@@ -13,7 +13,7 @@ export default function Home() {
         <section className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-20">
           <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl font-bold mb-4">
-              Your Open-Source AI Companion
+              Your Open Source AI Companion
             </h1>
             <p className="text-xl mb-8">
               Customizable, secure, and easy to deploy for personal and business
