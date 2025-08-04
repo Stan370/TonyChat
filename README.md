@@ -44,3 +44,24 @@ This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-opti
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+
+## RAG Knowledgebase Integration
+
+### Running the RAG Microservice
+
+1. Install Python dependencies:
+   ```sh
+   pip install fastapi uvicorn langchain openai faiss-cpu
+   ```
+2. Start the RAG service:
+   ```sh
+   uvicorn rag_service:app --reload --port 8001
+   ```
+   This loads the knowledgebase from `docs/tech` and serves a `/rag/query` endpoint.
+
+### Updating the Knowledgebase
+- Edit or replace the `docs/tech` file with your new knowledge content.
+- Restart the RAG service to reload the knowledgebase.
+
+### Querying from the Frontend
+- Use the `/api/rag` endpoint in your Next.js app to send user queries and receive answers/context from the RAG service.
