@@ -2,7 +2,7 @@
 **TonyChat is a open-source multifunctional Chatbot, which you can use for your personal and business purpose safely. It supports customized chatbot deploy, easy fine tuning your models, safety and privacy. The platform is designed to make it easy for anyone to find, share, and use prompts to develop AI applications.**
 
 
-![Homepage](home.png)
+![Homepage](public/home.png)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Stan370/TonyChat/badge)](https://securityscorecards.dev/viewer/?uri=github.comStan370/TonyChat)
 
 ## Getting Started
@@ -15,12 +15,7 @@ First, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
 ```
 
 Before starting development, you must create a new `.env.local` file at project root, and place your api key into it:
