@@ -203,13 +203,13 @@ const RecommendedCarousel = ({
               onClick={() => handleUseBot(agent)}
               className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl p-8 text-white text-center cursor-pointer hover:from-purple-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105"
             >
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-4 pointer-events-none">
                 <Image
                   src={agent.image}
                   alt={agent.name}
                   width={80}
                   height={80}
-                  className="rounded-full border-4 border-white shadow-lg pointer-events-none"
+                  className="rounded-full border-4 border-white shadow-lg "
                 />
               </div>
               <h3 className="text-2xl font-bold mb-2">{agent.name}</h3>
