@@ -40,7 +40,7 @@ const Siderbar = () => {
           </div>
           Chat
         </Link>
-        <Link href="#" className="group hover:text-blue-500 text-center">
+        <Link href="/store" className="group hover:text-blue-500 text-center">
           <div className="items-center justify-center hover:text-blue-500 transition-transform duration-200 ease-in-out group-hover:scale-75">
             <svg
               xmlns="http://www.w3.org/2000/svg"

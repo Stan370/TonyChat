@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 
 const defaultMetadata: Metadata = {
+  metadataBase: new URL('https://tony-chat-nine.vercel.app'),
   title: {
     default: 'TonyChat - Your Personal and Business Chatbot',
     template: '%s | TonyChat'

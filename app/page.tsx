@@ -1,15 +1,13 @@
-import Carousel from "./components/Carousel";
 import Sidebar from "./components/Siderbar";
 
 
 export default function Home() {
-  const slides = ["/1.jpg", "/user.jpg", "/3.jpg"];
 
   return (
     <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">
       <Sidebar />
 
-      <div>
+      <div className="flex-1 w-full max-w-none">
         <section className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-20">
           <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl font-bold mb-4">
@@ -27,7 +25,7 @@ export default function Home() {
                 Chat Now
               </a>
               <a
-                href="#"
+                href="/store"
                 className="bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800"
               >
                 Bot Store
@@ -98,9 +96,6 @@ export default function Home() {
             </a>
           </div>
         </section>
-        <div className="relative m-auto p-4 ">
-            <Carousel autoPlay={true}>{slides}</Carousel>
-        </div>
         <footer className="bg-gray-800 text-white py-10">
           <div className="container mx-auto px-6">
             <div className="flex flex-wrap justify-between">
