@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "react-feather";
+import Image from "next/image";
 
 const Carousel = ({
   children: slides,
@@ -10,10 +11,10 @@ const Carousel = ({
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const handleNextSlide = () => {
+  const handleNextSlide = useCallback(() => {
     let newSlide = currentSlide === slides.length - 1 ? 0 : currentSlide + 1;
     setCurrentSlide(newSlide);
-  };
+  }, [currentSlide, slides.length]);
 
   const handlePrevSlide = () => {
     let newSlide = currentSlide === 0 ? slides.length - 1 : currentSlide - 1;
@@ -34,11 +35,13 @@ const Carousel = ({
         className="flex w-full transition-transform duration-500 ease-in-out transform" 
       >
         {slides.map((slide, index) => (
-          <img
+          <Image
             key={index}
             className="flex-shrink-0 rounded-xl shadow hover:shadow-lg w-full md:min-h-96"
             src={slide}
             alt={`Slide ${index + 1}`}
+            width={400}
+            height={400}
             onClick={() => {
               if (index === 2) {
                 window.location.href = 'https://chatgpt.com/';

@@ -1,30 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "react-feather";
 import Image from "next/image";
-
-interface RecommendedAgent {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  category: string;
-  rating: number;
-}
-
-interface Bot {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  avatar: string;
-  rating: number;
-  downloads: number;
-  price: "free" | "premium";
-  tags: string[];
-  author: string;
-}
+import { Bot, Agent } from "@/lib/types";
 
 interface RecommendedCarouselProps {
   autoPlay?: boolean;
@@ -37,14 +16,15 @@ const RecommendedCarousel = ({
 }: RecommendedCarouselProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Bot data moved from store page
-  const mockBots: Bot[] = [
+
+  // Recommended agents data (subset of mockBots)
+  const recommendedAgents: Bot[] = [
     {
       id: "1",
       name: "Tonychat",
       description: "AI-powered coding assistant that helps with debugging, code review, and programming best practices.",
-      category: "Development",
       avatar: "/user.jpg",
+      category: "Development",
       rating: 4.8,
       downloads: 12500,
       price: "free",
@@ -52,35 +32,11 @@ const RecommendedCarousel = ({
       author: "DevTeam"
     },
     {
-      id: "2",
-      name: "Content Writer",
-      description: "Professional content creation bot for blogs, articles, and marketing copy.",
-      category: "Writing",
-      avatar: "/cat.png",
-      rating: 4.6,
-      downloads: 8900,
-      price: "premium",
-      tags: ["writing", "content", "marketing"],
-      author: "ContentPro"
-    },
-    {
-      id: "3",
-      name: "Customer Support",
-      description: "24/7 customer service bot with multilingual support and ticket management.",
-      category: "Business",
-      avatar: "/home.png",
-      rating: 4.7,
-      downloads: 15600,
-      price: "premium",
-      tags: ["support", "customer", "service"],
-      author: "SupportAI"
-    },
-    {
-      id: "4",
+      id: "4", 
       name: "Language Tutor",
       description: "Interactive language learning companion with conversation practice and grammar help.",
-      category: "Education",
       avatar: "/1.jpg",
+      category: "Education",
       rating: 4.9,
       downloads: 22100,
       price: "free",
@@ -88,96 +44,48 @@ const RecommendedCarousel = ({
       author: "EduBot"
     },
     {
-      id: "5",
-      name: "Data Analyst",
-      description: "Advanced data analysis and visualization bot for business intelligence.",
-      category: "Analytics",
-      avatar: "/3.jpg",
-      rating: 4.5,
-      downloads: 6800,
-      price: "premium",
-      tags: ["data", "analytics", "visualization"],
-      author: "DataPro"
-    },
-    {
-      id: "6",
-      name: "Creative Designer",
-      description: "AI design assistant for logos, graphics, and creative visual content.",
-      category: "Design",
-      avatar: "/reddit.png",
-      rating: 4.4,
-      downloads: 11200,
-      price: "premium",
-      tags: ["design", "creative", "graphics"],
-      author: "DesignAI"
-    }
-  ];
-
-  // Recommended agents data
-  const recommendedAgents: RecommendedAgent[] = [
-    {
-      id: "1",
-      name: "Tonychat",
-      description: "AI-powered coding assistant that helps with debugging, code review, and programming best practices.",
-      image: "/user.jpg",
-      category: "Development",
-      rating: 4.8
-    },
-    {
-      id: "4", 
-      name: "Language Tutor",
-      description: "Interactive language learning companion with conversation practice and grammar help.",
-      image: "/1.jpg",
-      category: "Education",
-      rating: 4.9
-    },
-    {
       id: "2",
       name: "Content Writer",
       description: "Professional content creation bot for blogs, articles, and marketing copy.",
-      image: "/cat.png", 
+      avatar: "/cat.png", 
       category: "Writing",
-      rating: 4.6
+      rating: 4.6,
+      downloads: 8900,
+      price: "premium",
+      tags: ["writing", "content", "marketing"],
+      author: "ContentPro"
     }
   ];
 
-  const handleUseBot = (agent: RecommendedAgent) => {
+  const handleUseBot = (agent: Bot) => {
     console.log('handleUseBot clicked for agent:', agent.name);
     
-    // Find the corresponding bot from the bots array
-    const bot = mockBots.find(b => b.id === agent.id);
-    console.log('Found bot:', bot);
+    // Create a new agent with the bot's information
+    const agentData: Agent = {
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      avatar: agent.avatar,
+      category: agent.category,
+      tags: agent.tags,
+      author: agent.author,
+      systemPrompt: `You are ${agent.name}, ${agent.description}. You specialize in ${agent.tags.join(', ')}. Please help the user with their requests in a professional and helpful manner.`
+    };
+
+    console.log('Agent data created:', agentData);
+
+    // Store the agent data in localStorage for the chat page to use
+    localStorage.setItem('selectedAgent', JSON.stringify(agentData));
     
-    if (bot) {
-      // Create a new agent with the bot's information
-      const agentData = {
-        id: `agent_${Date.now()}`,
-        name: bot.name,
-        description: bot.description,
-        avatar: bot.avatar,
-        category: bot.category,
-        tags: bot.tags,
-        author: bot.author,
-        systemPrompt: `You are ${bot.name}, ${bot.description}. You specialize in ${bot.tags.join(', ')}. Please help the user with their requests in a professional and helpful manner.`
-      };
-
-      console.log('Agent data created:', agentData);
-
-      // Store the agent data in localStorage for the chat page to use
-      localStorage.setItem('selectedAgent', JSON.stringify(agentData));
-      
-      console.log('Navigating to chat page...');
-      // Navigate to chat page
-      window.location.href = '/chat';
-    } else {
-      console.error('Bot not found for agent:', agent);
-    }
+    console.log('Navigating to chat page...');
+    // Navigate to chat page
+    window.location.href = '/chat';
   };
 
-  const handleNextSlide = () => {
+  const handleNextSlide = useCallback(() => {
     let newSlide = currentSlide === recommendedAgents.length - 1 ? 0 : currentSlide + 1;
     setCurrentSlide(newSlide);
-  };
+  }, [currentSlide, recommendedAgents.length]);
 
   const handlePrevSlide = () => {
     let newSlide = currentSlide === 0 ? recommendedAgents.length - 1 : currentSlide - 1;
@@ -205,7 +113,7 @@ const RecommendedCarousel = ({
             >
               <div className="flex justify-center mb-4 pointer-events-none">
                 <Image
-                  src={agent.image}
+                  src={agent.avatar}
                   alt={agent.name}
                   width={80}
                   height={80}

@@ -1,55 +1,54 @@
 import { getServerConfig } from "@/config/server";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { getModelConfig } from "@/lib/modelConfig";
 
 export const runtime = 'edge';
 
 export async function POST(req: Request) {
-	const encoder = new TextEncoder();
-	const stream = new TransformStream();
-	const writer = stream.writable.getWriter();
-
 	try {
 		const config = await getServerConfig();
-		const { message, model } = await req.json();
+		const { message, conversationId, agentId, systemPrompt, model } = await req.json();
 		
 		const genAI = new GoogleGenerativeAI(config.geminiKey);
-		const modelG = genAI.getGenerativeModel({ model: model || "gemini-1.5-flash" });
+		const modelG = genAI.getGenerativeModel({ 
+			model: model || "gemini-1.5-flash",
+			systemInstruction: systemPrompt || undefined
+		});
 
-		const chat = modelG.startChat({
+		// Get model configuration
+		const modelConfig = getModelConfig(model || "gemini-1.5-flash");
+
+		const result = await modelG.generateContent({
+			contents: [{ role: "user", parts: [{ text: message }] }],
 			generationConfig: {
-				temperature: 0.8,
+				temperature: modelConfig?.temperature || 0.8,
 				topK: 0.9,
-				topP: 1,
-				maxOutputTokens: 2048,
+				topP: modelConfig?.topP || 1,
+				maxOutputTokens: modelConfig?.maxTokens || 2048,
 			},
 			safetySettings: [
 				{
 					category: HarmCategory.HARM_CATEGORY_HARASSMENT,
 					threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
 				},
-				// ... other safety settings ...
 			],
 		});
 
-		const result = await chat.sendMessage(message);
 		const response = await result.response;
+		const aiResponse = response.text() || "Sorry, I couldn't generate a response.";
 
-		// Stream the response
-		for (const chunk of response.text().split(' ')) {
-			await writer.write(encoder.encode(`data: ${JSON.stringify({ text: chunk + ' ' })}\n\n`));
-		}
+		return new Response(JSON.stringify(aiResponse), {
+			status: 200,
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		});
 	} catch (error: any) {
 		console.error('Error in Google AI chat:', error);
-		await writer.write(encoder.encode(`data: ${JSON.stringify({ error: error.message })}\n\n`));
-	} finally {
-		await writer.close();
-	}
+		const errorMessage = error.message || "An unexpected error occurred";
 
-	return new Response(stream.readable, {
-		headers: {
-			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive',
-		},
-	});
+		return new Response(JSON.stringify({ message: errorMessage }), {
+			status: 500,
+		});
+	}
 }

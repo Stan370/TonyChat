@@ -5,19 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../components/Siderbar";
 import RecommendedCarousel from "../components/RecommendedCarousel";
 import Image from "next/image";
-
-interface Bot {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  avatar: string;
-  rating: number;
-  downloads: number;
-  price: "free" | "premium";
-  tags: string[];
-  author: string;
-}
+import { Bot, Agent } from "@/lib/types";
 
 const mockBots: Bot[] = [
   {
@@ -104,8 +92,8 @@ export default function Store() {
 
   const handleUseBot = (bot: Bot) => {
     // Create a new agent with the bot's information
-    const agentData = {
-      id: `agent_${Date.now()}`,
+    const agentData: Agent = {
+      id: bot.id,
       name: bot.name,
       description: bot.description,
       avatar: bot.avatar,
