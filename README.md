@@ -1,8 +1,7 @@
-# Tonychat
+# [Tonychat](https://tony-chat-nine.vercel.app/)
 **TonyChat is a open-source multifunctional Chatbot, which you can use for your personal and business purpose safely. It supports customized chatbot deploy, easy fine tuning your models, safety and privacy. The platform is designed to make it easy for anyone to find, share, and use prompts to develop AI applications.**
 
 
-![Homepage](public/home.png)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Stan370/TonyChat/badge)](https://securityscorecards.dev/viewer/?uri=github.comStan370/TonyChat)
 
 ## Getting Started
