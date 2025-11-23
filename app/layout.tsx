@@ -35,7 +35,6 @@ export default function RootLayout({
           type="font/woff2"
           crossOrigin="anonymous"
         />
-        <meta name="google-adsense-account" content="ca-pub-3592614110969127"></meta>
       </Head>
     
       <body className={inter.className}>{children}</body>

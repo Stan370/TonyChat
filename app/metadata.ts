@@ -12,6 +12,9 @@ const defaultMetadata: Metadata = {
   creator: 'TonyChat',
   publisher: 'TonyChat',
   robots: 'index, follow',
+  other: {
+    'google-adsense-account': 'ca-pub-3592614110969127'
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
