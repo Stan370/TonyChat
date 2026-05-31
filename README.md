@@ -1,12 +1,12 @@
 # [Tonychat](https://tony-chat-nine.vercel.app/)
 
-**TonyChat is a open-source multifunctional Chatbot, which you can use for your personal and business purpose safely. It supports customized chatbot deploy, easy fine tuning your models, safety and privacy. The platform is designed to make it easy for anyone to find, share, and use prompts to develop AI applications.**
+**TonyChat is a open-source multifunctional Agent, which you can use for your personal and business purpose safely. It supports customized Agent deploy, easy fine tuning your models, safety and privacy. The platform is designed to make it easy for anyone to find, share, and use prompts to develop AI applications.**
 
 ## Features
 
 ![Homepage](public/image.png)
 
-- **Custom AI Agents:** Create, customize, and deploy AI chatbots tailored for your needs.
+- **Custom AI Agents:** Create, customize, and deploy AI Agents tailored for your needs.
 - **Workflow Automation:** Build conversations and automation flows using an intuitive visual or code interface.
 - **Multi-Model Support:** Integrate with a variety of large language models and tools.
 - **Community Sharing:** Discover and use bots, prompts, and workflows shared by others.
