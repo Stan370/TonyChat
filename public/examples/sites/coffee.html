@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember &amp; Oak · Specialty Coffee Roasters</title>
+<style>
+  :root {
+    --cream: #fbf6ef; --paper: #fffdf9; --ink: #2b1d14; --muted: #7a6656; --line: #eadfd2;
+    --ember: #c8551f; --ember-dark: #9e3f12; --oak: #6b4a32; --gold: #e3a13b;
+    --radius: 18px; --shadow: 0 18px 40px -22px rgba(74, 40, 18, .45);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--cream); line-height: 1.6; }
+  h1, h2, h3 { font-family: ui-serif, Georgia, "Times New Roman", serif; line-height: 1.15; margin: 0; }
+  a { color: inherit; }
+  .container { width: min(1120px, 100% - 40px); margin-inline: auto; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 600; border-radius: 999px; padding: 12px 22px; border: 1.5px solid transparent; cursor: pointer; text-decoration: none; transition: transform .15s, background .15s, color .15s; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #e3a13b88; outline-offset: 2px; }
+  .btn-primary { background: var(--ember); color: #fff; }
+  .btn-primary:hover { background: var(--ember-dark); }
+  .btn-ghost { border-color: var(--oak); color: var(--oak); background: transparent; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 12px; font-weight: 700; color: var(--ember); }
+
+  /* Nav */
+  header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--cream) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav { display: flex; align-items: center; gap: 28px; height: 68px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: ui-serif, Georgia, serif; font-weight: 700; font-size: 20px; text-decoration: none; }
+  .links { display: flex; gap: 22px; margin-left: auto; }
+  .links a { text-decoration: none; color: var(--muted); font-weight: 500; }
+  .links a:hover { color: var(--ink); }
+  .cart { position: relative; background: none; border: 0; cursor: pointer; color: var(--ink); padding: 6px; }
+  .cart span { position: absolute; top: -2px; right: -4px; background: var(--ember); color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px; min-width: 18px; height: 18px; display: grid; place-items: center; transform: scale(0); transition: transform .2s; }
+  .cart span.show { transform: scale(1); }
+  .menu-btn { display: none; background: none; border: 0; cursor: pointer; padding: 6px; color: var(--ink); }
+
+  /* Hero */
+  .hero { padding: 72px 0 56px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+  .hero h1 { font-size: clamp(40px, 6vw, 64px); margin: 14px 0 18px; }
+  .hero h1 em { color: var(--ember); font-style: italic; }
+  .hero p.lead { font-size: 18px; color: var(--muted); max-width: 520px; }
+  .hero .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  .stats { display: flex; gap: 32px; margin-top: 40px; flex-wrap: wrap; }
+  .stats div { font-size: 13px; color: var(--muted); }
+  .stats b { display: block; font-family: ui-serif, Georgia, serif; font-size: 26px; color: var(--ink); }
+  .art { position: relative; aspect-ratio: 1; border-radius: 40% 60% 55% 45% / 50% 45% 55% 50%; background: radial-gradient(circle at 35% 30%, #f3c98b, #d9894a 45%, #8a4a24); box-shadow: var(--shadow); display: grid; place-items: center; }
+  .cup { position: relative; width: 46%; aspect-ratio: 1.15; background: var(--paper); border-radius: 0 0 46% 46% / 0 0 60% 60%; box-shadow: inset -12px -10px 0 #efe4d6, 0 22px 30px -12px #4a281299; margin-top: 18%; }
+  .cup::before { content: ""; position: absolute; inset: 6% 6% auto; height: 22%; border-radius: 50%; background: radial-gradient(ellipse at center, #6b3a1c, #3b1f0e); }
+  .cup::after { content: ""; position: absolute; right: -22%; top: 18%; width: 30%; height: 42%; border: 10px solid var(--paper); border-left: 0; border-radius: 0 50% 50% 0; }
+  .steam { position: absolute; bottom: 100%; width: 10%; height: 60%; border-radius: 50%; border-left: 5px solid #fff8; filter: blur(1px); animation: steam 3.2s ease-in-out infinite; }
+  .steam:nth-child(1) { left: 28%; } .steam:nth-child(2) { left: 46%; animation-delay: .9s; } .steam:nth-child(3) { left: 64%; animation-delay: 1.8s; }
+  @keyframes steam { 0% { opacity: 0; transform: translateY(10px) scaleY(.8); } 40% { opacity: .9; } 100% { opacity: 0; transform: translateY(-30px) scaleY(1.2) skewX(8deg); } }
+  .badge { position: absolute; left: -4%; bottom: 10%; background: var(--paper); border-radius: 16px; padding: 12px 16px; box-shadow: var(--shadow); font-size: 13px; }
+  .badge b { display: block; font-size: 15px; }
+
+  section { padding: 72px 0; }
+  .section-head { text-align: center; max-width: 620px; margin: 0 auto 40px; }
+  .section-head h2 { font-size: clamp(30px, 4vw, 42px); margin: 10px 0 10px; }
+  .section-head p { color: var(--muted); margin: 0; }
+
+  /* Beans */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .bean { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; transition: transform .2s, box-shadow .2s; }
+  .bean:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+  .bag { height: 190px; display: grid; place-items: center; }
+  .bag div { width: 108px; height: 140px; border-radius: 10px 10px 16px 16px; position: relative; box-shadow: 0 16px 24px -12px #0006; display: grid; place-items: center; color: #fff; font-family: ui-serif, Georgia, serif; font-weight: 700; text-align: center; font-size: 14px; line-height: 1.2; padding: 10px; }
+  .bag div::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 16px; background: #0002; border-radius: 10px 10px 0 0; }
+  .bean .body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .bean h3 { font-size: 22px; }
+  .origin { color: var(--muted); font-size: 14px; }
+  .notes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .notes span { font-size: 12px; background: #f6ece0; color: var(--oak); border-radius: 999px; padding: 4px 10px; }
+  .roast { font-size: 12px; color: var(--muted); }
+  .roast .meter { height: 6px; border-radius: 999px; background: #efe4d6; margin-top: 4px; overflow: hidden; }
+  .roast .meter i { display: block; height: 100%; background: linear-gradient(90deg, #e3a13b, #6b3a1c); border-radius: inherit; }
+  .buy { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 8px; }
+  .price { font-family: ui-serif, Georgia, serif; font-size: 22px; font-weight: 700; }
+  .price small { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; color: var(--muted); font-weight: 400; }
+
+  /* Plans */
+  .plans-bg { background: var(--paper); border-block: 1px solid var(--line); }
+  .toggle { display: inline-flex; background: #f3e9dd; border-radius: 999px; padding: 4px; margin-top: 18px; }
+  .toggle button { font: inherit; font-weight: 600; border: 0; background: transparent; border-radius: 999px; padding: 8px 16px; cursor: pointer; color: var(--muted); }
+  .toggle button.active { background: var(--paper); color: var(--ink); box-shadow: 0 2px 6px #0001; }
+  .plan { background: var(--cream); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; display: flex; flex-direction: column; gap: 14px; position: relative; }
+  .plan.popular { background: var(--ink); color: #fbf1e4; border-color: var(--ink); transform: translateY(-8px); box-shadow: var(--shadow); }
+  .plan.popular .muted { color: #cdb9a5; }
+  .plan .tagline { position: absolute; top: -12px; left: 28px; background: var(--gold); color: var(--ink); font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 12px; }
+  .plan h3 { font-size: 24px; }
+  .plan .amount { font-family: ui-serif, Georgia, serif; font-size: 42px; font-weight: 700; }
+  .plan .amount small { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 400; }
+  .plan ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .plan li { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }
+  .plan li svg { flex: none; margin-top: 4px; }
+  .plan .btn { justify-content: center; margin-top: auto; }
+  .plan.popular .btn-ghost { border-color: #fbf1e4; color: #fbf1e4; }
+  .muted { color: var(--muted); }
+
+  /* Testimonials */
+  .quote { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .stars { color: var(--gold); letter-spacing: 2px; }
+  .quote p { margin: 0; font-size: 16px; }
+  .who { display: flex; align-items: center; gap: 12px; margin-top: auto; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; }
+  .who b { display: block; font-size: 15px; }
+  .who span { font-size: 13px; color: var(--muted); }
+
+  /* Newsletter */
+  .newsletter { background: linear-gradient(135deg, var(--ember), #8a3a14); color: #fff; border-radius: 28px; padding: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+  .newsletter h2 { font-size: clamp(28px, 3.5vw, 38px); }
+  .newsletter p { color: #ffe4d1; }
+  form { display: flex; gap: 10px; flex-wrap: wrap; }
+  form input { flex: 1; min-width: 200px; font: inherit; border: 0; border-radius: 999px; padding: 13px 20px; }
+  form .btn { background: var(--ink); color: #fff; }
+  .form-msg { flex-basis: 100%; font-size: 14px; min-height: 22px; margin: 0; }
+
+  footer { padding: 48px 0 36px; color: var(--muted); font-size: 14px; }
+  .foot { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 24px; }
+  .foot h4 { color: var(--ink); margin: 0 0 10px; font-size: 14px; }
+  .foot a { display: block; text-decoration: none; margin: 4px 0; }
+  .foot a:hover { color: var(--ink); }
+  .copy { border-top: 1px solid var(--line); margin-top: 32px; padding-top: 20px; font-size: 13px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 120px); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 14px; transition: transform .3s; z-index: 20; }
+  .toast.show { transform: translate(-50%, 0); }
+
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; padding-top: 40px; }
+    .art { max-width: 380px; margin: 0 auto; width: 100%; }
+    .grid3 { grid-template-columns: 1fr; }
+    .plan.popular { transform: none; }
+    .newsletter { grid-template-columns: 1fr; padding: 32px 24px; }
+    .foot { grid-template-columns: 1fr 1fr; }
+    .links { display: none; position: absolute; top: 68px; left: 0; right: 0; flex-direction: column; gap: 0; background: var(--cream); border-bottom: 1px solid var(--line); padding: 8px 20px 16px; }
+    .links.open { display: flex; }
+    .links a { padding: 10px 0; }
+    .menu-btn { display: block; margin-left: auto; }
+    nav .btn-primary { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <nav aria-label="Main">
+      <a class="logo" href="#top" aria-label="Ember & Oak home">
+        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="16" rx="11" ry="14" transform="rotate(-30 16 16)" fill="#6b4a32"/><path d="M10 25 C 17 18, 14 12, 22 6" stroke="#fbf6ef" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+        Ember &amp; Oak
+      </a>
+      <div class="links" id="links">
+        <a href="#beans">Beans</a><a href="#plans">Subscribe</a><a href="#stories">Stories</a><a href="#visit">Visit us</a>
+      </div>
+      <button class="cart" type="button" aria-label="Cart" id="cart-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+        <span id="cart-count">0</span>
+      </button>
+      <a class="btn btn-primary" href="#beans">Shop beans</a>
+      <button class="menu-btn" type="button" aria-label="Open menu" aria-expanded="false" id="menu-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="container hero">
+    <div>
+      <span class="eyebrow">Roasted every Tuesday in Portland</span>
+      <h1>Small-batch coffee, roasted with <em>patience</em>.</h1>
+      <p class="lead">We buy directly from twelve family farms, roast in tiny batches over oak-fired drums, and ship within 48 hours so every cup tastes like the first.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#beans">Explore our beans</a>
+        <a class="btn btn-ghost" href="#plans">Start a subscription</a>
+      </div>
+      <div class="stats">
+        <div><b>12</b>single origins</div>
+        <div><b>48h</b>roast to doorstep</div>
+        <div><b>4.9★</b>from 2,300 reviews</div>
+      </div>
+    </div>
+    <div class="art" aria-hidden="true">
+      <div class="cup"><i class="steam"></i><i class="steam"></i><i class="steam"></i></div>
+      <div class="badge"><b>Free shipping</b>on orders over $35</div>
+    </div>
+  </div>
+
+  <section id="beans">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">This season's lineup</span>
+        <h2>Featured beans</h2>
+        <p>Each lot is cupped by our roasters before it earns a spot on the shelf.</p>
+      </div>
+      <div class="grid3" id="bean-grid"></div>
+    </div>
+  </section>
+
+  <section id="plans" class="plans-bg">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">Never run out</span>
+        <h2>Coffee subscriptions</h2>
+        <p>Fresh beans on your schedule. Skip, swap or cancel anytime.</p>
+        <div class="toggle" role="radiogroup" aria-label="Delivery frequency">
+          <button type="button" class="active" data-freq="biweekly" role="radio" aria-checked="true">Every 2 weeks</button>
+          <button type="button" data-freq="monthly" role="radio" aria-checked="false">Monthly</button>
+        </div>
+      </div>
+      <div class="grid3" id="plan-grid"></div>
+    </div>
+  </section>
+
+  <section id="stories">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">Kind words</span>
+        <h2>From our regulars</h2>
+      </div>
+      <div class="grid3">
+        <figure class="quote"><div class="stars" aria-label="5 stars">★★★★★</div><p>“The Guji smells like a fruit market when I open the bag. I've stopped buying coffee anywhere else.”</p><figcaption class="who"><div class="avatar" style="background:#c8551f">MR</div><div><b>Maya R.</b><span>Subscriber since 2024</span></div></figcaption></figure>
+        <figure class="quote"><div class="stars" aria-label="5 stars">★★★★★</div><p>“Their brew guides fixed my sour pour-overs in one morning. Shipping is ridiculously fast too.”</p><figcaption class="who"><div class="avatar" style="background:#6b4a32">JT</div><div><b>Jonah T.</b><span>Home barista</span></div></figcaption></figure>
+        <figure class="quote"><div class="stars" aria-label="5 stars">★★★★★</div><p>“We serve Ember &amp; Oak at our café. Consistent roasts, and the team actually picks up the phone.”</p><figcaption class="who"><div class="avatar" style="background:#e3a13b">SL</div><div><b>Sofia L.</b><span>Owner, Little Fern Café</span></div></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="newsletter">
+    <div class="container">
+      <div class="newsletter">
+        <div>
+          <h2>Get first dibs on micro-lots</h2>
+          <p>One short email a month: new arrivals, brew tips and 10% off your first order.</p>
+        </div>
+        <form id="signup" novalidate>
+          <label for="email" class="visually-hidden" style="position:absolute;left:-9999px">Email address</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+          <button class="btn" type="submit">Subscribe</button>
+          <p class="form-msg" id="form-msg" role="status"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="visit">
+  <div class="container">
+    <div class="foot">
+      <div><a class="logo" href="#top" style="margin-bottom:10px">Ember &amp; Oak</a>214 Alder Street, Portland, OR<br>Café open daily 7am – 4pm</div>
+      <div><h4>Shop</h4><a href="#beans">Beans</a><a href="#plans">Subscriptions</a><a href="#beans">Gift cards</a></div>
+      <div><h4>Learn</h4><a href="#stories">Brew guides</a><a href="#stories">Our farms</a><a href="#stories">Wholesale</a></div>
+      <div><h4>Follow</h4><a href="#visit">Instagram</a><a href="#visit">YouTube</a><a href="#visit">Newsletter</a></div>
+    </div>
+    <div class="copy">© 2026 Ember &amp; Oak Coffee Roasters. Example landing page from the TonyChat use case gallery.</div>
+  </div>
+</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  const beans = [
+    { name: "Ethiopia Guji", origin: "Washed · Hambela, 2,100 m", notes: ["jasmine", "bergamot", "white peach"], roast: 25, price: 21, colors: ["#e9a15b", "#c86a2b"] },
+    { name: "Colombia Huila", origin: "Honey · Pitalito, 1,750 m", notes: ["caramel", "red apple", "cocoa nib"], roast: 55, price: 19, colors: ["#b8562b", "#7d3418"] },
+    { name: "Sumatra Gayo", origin: "Wet-hulled · Aceh, 1,500 m", notes: ["dark chocolate", "cedar", "molasses"], roast: 82, price: 18, colors: ["#5b3a26", "#2b1d14"] },
+  ];
+  const plans = [
+    { name: "Explorer", desc: "A new single origin each delivery.", price: { biweekly: 18, monthly: 20 }, items: ["1 × 12 oz bag", "Rotating origins", "Tasting notes card"] },
+    { name: "Enthusiast", desc: "Our most popular plan for daily brewers.", price: { biweekly: 32, monthly: 36 }, items: ["2 × 12 oz bags", "Pick your roast level", "Free shipping", "Early access to micro-lots"], popular: true },
+    { name: "Café at home", desc: "For households that run on coffee.", price: { biweekly: 58, monthly: 64 }, items: ["4 × 12 oz bags", "Mix origins and blends", "Free shipping", "Quarterly brew gear gift"] },
+  ];
+  const check = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#e3a13b"><path d="M5 12l5 5L20 7"/></svg>';
+  const $ = id => document.getElementById(id);
+  let cart = 0, freq = "biweekly";
+
+  $("bean-grid").innerHTML = beans.map((b, i) => `
+    <article class="bean">
+      <div class="bag" style="background:linear-gradient(160deg, ${b.colors[0]}22, ${b.colors[1]}22)"><div style="background:linear-gradient(160deg, ${b.colors[0]}, ${b.colors[1]})">${b.name.split(" ")[1]}<br><small style="font-weight:400;opacity:.85">${b.name.split(" ")[0]}</small></div></div>
+      <div class="body">
+        <h3>${b.name}</h3>
+        <div class="origin">${b.origin}</div>
+        <div class="notes">${b.notes.map(n => `<span>${n}</span>`).join("")}</div>
+        <div class="roast">Roast: ${b.roast < 40 ? "light" : b.roast < 70 ? "medium" : "dark"}<div class="meter"><i style="width:${b.roast}%"></i></div></div>
+        <div class="buy"><span class="price">$${b.price} <small>/ 12 oz</small></span><button class="btn btn-primary" type="button" data-bean="${i}">Add to cart</button></div>
+      </div>
+    </article>`).join("");
+
+  function renderPlans() {
+    $("plan-grid").innerHTML = plans.map(p => `
+      <article class="plan ${p.popular ? "popular" : ""}">
+        ${p.popular ? '<span class="tagline">Most popular</span>' : ""}
+        <h3>${p.name}</h3>
+        <p class="muted" style="margin:0">${p.desc}</p>
+        <div class="amount">$${p.price[freq]}<small> / ${freq === "biweekly" ? "2 weeks" : "month"}</small></div>
+        <ul>${p.items.map(it => `<li>${check}${it}</li>`).join("")}</ul>
+        <button class="btn ${p.popular ? "btn-primary" : "btn-ghost"}" type="button" data-plan="${p.name}">Choose ${p.name}</button>
+      </article>`).join("");
+  }
+  renderPlans();
+
+  function toast(text) {
+    const t = $("toast"); t.textContent = text; t.classList.add("show");
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  document.addEventListener("click", e => {
+    const bean = e.target.closest("[data-bean]");
+    if (bean) { cart++; const c = $("cart-count"); c.textContent = cart; c.classList.add("show"); toast(`${beans[bean.dataset.bean].name} added to your cart`); }
+    const plan = e.target.closest("[data-plan]");
+    if (plan) toast(`${plan.dataset.plan} plan selected · delivered ${freq === "biweekly" ? "every 2 weeks" : "monthly"}`);
+    const f = e.target.closest("[data-freq]");
+    if (f) {
+      freq = f.dataset.freq;
+      document.querySelectorAll("[data-freq]").forEach(b => { const on = b === f; b.classList.toggle("active", on); b.setAttribute("aria-checked", on); });
+      renderPlans();
+    }
+    if (e.target.closest(".links a")) { $("links").classList.remove("open"); $("menu-btn").setAttribute("aria-expanded", "false"); }
+  });
+  $("cart-btn").addEventListener("click", () => toast(cart ? `${cart} item${cart > 1 ? "s" : ""} in your cart` : "Your cart is empty"));
+  $("menu-btn").addEventListener("click", () => {
+    const open = $("links").classList.toggle("open");
+    $("menu-btn").setAttribute("aria-expanded", String(open));
+  });
+  $("signup").addEventListener("submit", e => {
+    e.preventDefault();
+    const email = $("email").value.trim();
+    const msg = $("form-msg");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = "Please enter a valid email address."; $("email").focus(); return; }
+    msg.textContent = `Thanks! A welcome email with your 10% code is on its way to ${email}.`;
+    $("email").value = "";
+  });
+})();
+</script>
+</body>
+</html>

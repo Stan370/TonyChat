@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tomato Focus · Pomodoro timer</title>
+<style>
+  :root { --bg: #fff7f3; --card: #ffffff; --ink: #2d1e1a; --muted: #8a7570; --line: #f1e2dc; --accent: #e8573c; --accent-soft: #fde4dc; --green: #3aa76d; --ring: var(--accent); }
+  body.break { --accent: #2f9e8f; --accent-soft: #d8f3ee; --ring: var(--accent); --bg: #f2fbf9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; transition: background .4s; }
+  .app { width: min(980px, 100% - 32px); margin: 0 auto; padding: 28px 0 40px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 24px; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; }
+  .brand span { font-size: 26px; }
+  .summary { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+  .chip b { color: var(--ink); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px -30px #6b2a1a55; }
+  .modes { display: flex; gap: 6px; background: var(--accent-soft); padding: 5px; border-radius: 999px; width: fit-content; margin: 0 auto; }
+  .modes button { font: inherit; font-weight: 600; font-size: 14px; border: 0; background: transparent; padding: 8px 14px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+  .modes button.active { background: var(--card); color: var(--accent); box-shadow: 0 2px 8px #0000000f; }
+  .timer { position: relative; width: min(320px, 78vw); aspect-ratio: 1; margin: 26px auto 14px; }
+  .timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .timer circle { fill: none; stroke-width: 14; }
+  .track { stroke: var(--accent-soft); }
+  .progress { stroke: var(--ring); stroke-linecap: round; transition: stroke-dashoffset .5s linear, stroke .4s; }
+  .readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .time { font-size: clamp(48px, 13vw, 72px); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .label { color: var(--muted); font-size: 14px; max-width: 200px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .controls { display: flex; justify-content: center; align-items: center; gap: 12px; }
+  .btn { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 14px 34px; cursor: pointer; background: var(--accent); color: #fff; font-size: 17px; box-shadow: 0 8px 18px -8px var(--accent); transition: transform .15s, background .4s; }
+  .btn:active { transform: scale(.97); }
+  .icon-btn { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); cursor: pointer; display: grid; place-items: center; color: var(--muted); }
+  .icon-btn:hover { color: var(--ink); }
+  .dots { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-soft); }
+  .dots i.done { background: var(--accent); }
+  h2 { font-size: 16px; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; }
+  form { display: flex; gap: 8px; margin-bottom: 12px; }
+  input[type=text] { flex: 1; font: inherit; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--bg); }
+  form button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 0 16px; background: var(--ink); color: #fff; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li.task { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); cursor: pointer; transition: border-color .2s, background .2s; }
+  li.task.active { border-color: var(--accent); background: var(--accent-soft); }
+  li.task.done .name { text-decoration: line-through; color: var(--muted); }
+  li.task .name { flex: 1; font-size: 15px; }
+  li.task .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  li.task input { width: 18px; height: 18px; accent-color: var(--green); }
+  li.task .del { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+  .log { margin-top: 22px; }
+  .log li { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); border-bottom: 1px dashed var(--line); padding: 6px 0; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 10px; }
+  .hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 14px; }
+  @media (max-width: 760px) { .app { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><span aria-hidden="true">🍅</span> Tomato Focus</div>
+    <div class="summary" aria-live="polite">
+      <span class="chip">Today <b id="sum-sessions">0</b> sessions</span>
+      <span class="chip"><b id="sum-minutes">0</b> min focused</span>
+      <span class="chip">Streak <b id="sum-cycle">0/4</b></span>
+    </div>
+  </header>
+
+  <section class="card" aria-label="Timer">
+    <div class="modes" role="tablist">
+      <button type="button" role="tab" data-mode="focus" class="active">Focus</button>
+      <button type="button" role="tab" data-mode="short">Short break</button>
+      <button type="button" role="tab" data-mode="long">Long break</button>
+    </div>
+    <div class="timer">
+      <svg viewBox="0 0 220 220" aria-hidden="true"><circle class="track" cx="110" cy="110" r="96"/><circle class="progress" id="ring" cx="110" cy="110" r="96"/></svg>
+      <div class="readout"><div class="time" id="time">25:00</div><div class="label" id="label">Pick a task to focus on</div></div>
+    </div>
+    <div class="controls">
+      <button class="icon-btn" type="button" id="reset" aria-label="Reset timer" title="Reset">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      </button>
+      <button class="btn" type="button" id="toggle">Start</button>
+      <button class="icon-btn" type="button" id="skip" aria-label="Skip to next session" title="Skip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l10 7-10 7V5Z"/><path d="M19 5v14"/></svg>
+      </button>
+    </div>
+    <div class="dots" id="dots" aria-label="Sessions in this cycle"></div>
+    <p class="hint">Space to start or pause · a long break comes after every 4 focus sessions</p>
+  </section>
+
+  <section class="card" aria-label="Tasks">
+    <h2>Tasks <span class="chip" id="task-count">0 open</span></h2>
+    <form id="task-form"><input type="text" id="task-input" placeholder="What are you working on?" aria-label="New task" maxlength="80"><button type="submit">Add</button></form>
+    <ul id="tasks"></ul>
+    <div class="log">
+      <h2>Today's sessions</h2>
+      <ul id="log"></ul>
+    </div>
+  </section>
+</div>
+<script>
+(() => {
+  const DURATIONS = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 };
+  const LABELS = { focus: "Focus", short: "Short break", long: "Long break" };
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked in sandbox */ } },
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  let tasks = store.get("tomato-tasks", [
+    { id: 1, name: "Draft the project proposal", done: false, pomos: 1 },
+    { id: 2, name: "Review pull requests", done: false, pomos: 0 },
+    { id: 3, name: "Plan next week", done: true, pomos: 2 },
+  ]);
+  let log = store.get("tomato-log", {});
+  if (!log[today]) log[today] = [];
+  let activeId = store.get("tomato-active", tasks.find(t => !t.done)?.id ?? null);
+  let mode = "focus", remaining = DURATIONS.focus, running = false, endAt = 0, tick = null, cycle = store.get("tomato-cycle", 0);
+
+  const ring = $("ring"), C = 2 * Math.PI * 96;
+  ring.style.strokeDasharray = C;
+
+  function save() { store.set("tomato-tasks", tasks); store.set("tomato-log", log); store.set("tomato-active", activeId); store.set("tomato-cycle", cycle); }
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  function render() {
+    $("time").textContent = fmt(remaining);
+    ring.style.strokeDashoffset = C * (1 - remaining / DURATIONS[mode]);
+    const active = tasks.find(t => t.id === activeId);
+    $("label").textContent = mode === "focus" ? (active ? active.name : "Pick a task to focus on") : "Stretch, sip water, look away";
+    $("toggle").textContent = running ? "Pause" : remaining < DURATIONS[mode] ? "Resume" : "Start";
+    document.title = running ? `${fmt(remaining)} · ${LABELS[mode]}` : "Tomato Focus · Pomodoro timer";
+    document.body.classList.toggle("break", mode !== "focus");
+    document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+    $("dots").innerHTML = Array.from({ length: 4 }, (_, i) => `<i class="${i < cycle ? "done" : ""}"></i>`).join("");
+    const sessions = log[today];
+    $("sum-sessions").textContent = sessions.length;
+    $("sum-minutes").textContent = sessions.reduce((n, s) => n + s.minutes, 0);
+    $("sum-cycle").textContent = `${cycle}/4`;
+    $("task-count").textContent = `${tasks.filter(t => !t.done).length} open`;
+    $("tasks").innerHTML = tasks.length ? tasks.map(t => `
+      <li class="task ${t.id === activeId ? "active" : ""} ${t.done ? "done" : ""}" data-id="${t.id}">
+        <input type="checkbox" ${t.done ? "checked" : ""} aria-label="Mark done">
+        <span class="name"></span>
+        <span class="count">${"🍅".repeat(Math.min(t.pomos, 4))}${t.pomos > 4 ? " ×" + t.pomos : ""}</span>
+        <button class="del" type="button" aria-label="Delete task">×</button>
+      </li>`).join("") : '<li class="empty">No tasks yet. Add one above.</li>';
+    // Task names are user input: set as text, never as HTML.
+    document.querySelectorAll("li.task").forEach(li => { li.querySelector(".name").textContent = tasks.find(t => t.id === Number(li.dataset.id)).name; });
+    $("log").innerHTML = sessions.length ? sessions.slice().reverse().map(s => `<li><span></span><span>${s.time} · ${s.minutes} min</span></li>`).join("") : '<li class="empty">Finish a focus session to see it here.</li>';
+    document.querySelectorAll("#log li").forEach((li, i) => { const s = sessions.slice().reverse()[i]; if (s && li.firstElementChild) li.firstElementChild.textContent = s.task; });
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.25, 0.5].forEach(offset => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
+        g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + offset + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.2);
+        o.start(ctx.currentTime + offset); o.stop(ctx.currentTime + offset + 0.22);
+      });
+    } catch (e) { /* audio unavailable */ }
+  }
+
+  function setMode(next) {
+    mode = next; remaining = DURATIONS[mode]; stop(); render();
+  }
+
+  function start() {
+    if (running) return;
+    running = true; endAt = Date.now() + remaining * 1000;
+    tick = setInterval(() => {
+      remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+      if (remaining === 0) complete(); else render();
+    }, 250);
+    render();
+  }
+  function stop() { running = false; clearInterval(tick); tick = null; }
+
+  /** Move to the next session. Completed focus sessions (credit = true) are logged and counted. */
+  function advance(credit) {
+    stop();
+    if (mode === "focus") {
+      if (credit) {
+        beep();
+        const active = tasks.find(t => t.id === activeId);
+        if (active) active.pomos++;
+        log[today].push({ task: active ? active.name : "Untitled focus", minutes: Math.round(DURATIONS.focus / 60), time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+        cycle = Math.min(4, cycle + 1);
+      }
+      save();
+      setMode(cycle >= 4 ? "long" : "short");
+    } else {
+      if (credit) beep();
+      if (mode === "long") cycle = 0;
+      save();
+      setMode("focus");
+    }
+  }
+  const complete = () => advance(true);
+
+  $("toggle").addEventListener("click", () => (running ? (stop(), render()) : start()));
+  $("reset").addEventListener("click", () => { stop(); remaining = DURATIONS[mode]; render(); });
+  $("skip").addEventListener("click", () => advance(false));
+  document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  addEventListener("keydown", e => {
+    if (e.code === "Space" && e.target.tagName !== "INPUT") { e.preventDefault(); running ? (stop(), render()) : start(); }
+  });
+
+  $("task-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("task-input").value.trim();
+    if (!name) return;
+    const task = { id: Date.now(), name, done: false, pomos: 0 };
+    tasks.unshift(task);
+    if (!activeId) activeId = task.id;
+    $("task-input").value = "";
+    save(); render();
+  });
+  $("tasks").addEventListener("click", e => {
+    const li = e.target.closest("li.task");
+    if (!li) return;
+    const id = Number(li.dataset.id), task = tasks.find(t => t.id === id);
+    if (e.target.classList.contains("del")) { tasks = tasks.filter(t => t.id !== id); if (activeId === id) activeId = tasks.find(t => !t.done)?.id ?? null; }
+    else if (e.target.type === "checkbox") { task.done = e.target.checked; if (task.done && activeId === id) activeId = tasks.find(t => !t.done)?.id ?? null; }
+    else if (!task.done) activeId = id;
+    save(); render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

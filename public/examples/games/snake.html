@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Neon Snake</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #070b16; color: #e7ecff; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  #hud { display: flex; gap: 22px; font-size: 15px; letter-spacing: .04em; color: #9fb0e0; }
+  #hud b { color: #fff; font-size: 18px; }
+  canvas { border-radius: 14px; box-shadow: 0 0 0 1px #1d2747, 0 20px 60px -20px #00ffc880; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  #panel { pointer-events: auto; text-align: center; background: #0d1428e6; border: 1px solid #263257; border-radius: 18px; padding: 22px 28px; backdrop-filter: blur(6px); max-width: 300px; }
+  #panel h1 { margin: 0 0 6px; font-size: 30px; background: linear-gradient(90deg, #22ffc8, #4fa8ff, #c86bff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #panel p { margin: 6px 0; color: #b5c1e6; font-size: 14px; line-height: 1.5; }
+  #panel button { margin-top: 10px; font: inherit; font-weight: 600; color: #04121a; background: linear-gradient(90deg, #22ffc8, #4fa8ff); border: 0; border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">SCORE <b id="score">0</b> BEST <b id="best">0</b> SPEED <b id="speed">1</b></div>
+  <canvas id="game" aria-label="Snake board"></canvas>
+</div>
+<div id="overlay">
+  <div id="panel">
+    <h1 id="title">Neon Snake</h1>
+    <p id="message">Eat apples to grow. Golden apples are worth 5.<br>Walls wrap around. Don't bite yourself!</p>
+    <p style="font-size:12px;color:#7f8db8">Arrows / WASD or swipe · P to pause</p>
+    <button id="start" type="button">Play</button>
+  </div>
+</div>
+<script>
+(() => {
+  const COLS = 22, ROWS = 22;
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
+    set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage blocked in sandbox */ } },
+  };
+
+  let cell = 20, state = "menu", snake, dir, queue, apple, golden, score, best = store.get("neon-snake-best", 0);
+  let stepTime, acc = 0, last = 0, particles = [], shake = 0, pulse = 0;
+  $("best").textContent = best;
+
+  function resize() {
+    const size = Math.max(200, Math.min(window.innerWidth - 24, window.innerHeight - 70));
+    cell = Math.floor(size / COLS);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cell * COLS + "px";
+    canvas.style.height = cell * ROWS + "px";
+    canvas.width = cell * COLS * dpr;
+    canvas.height = cell * ROWS * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function freeCell() {
+    for (;;) {
+      const p = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+      const taken = snake.some(s => s.x === p.x && s.y === p.y) || (apple && apple.x === p.x && apple.y === p.y) || (golden && golden.x === p.x && golden.y === p.y);
+      if (!taken) return p;
+    }
+  }
+
+  function reset() {
+    const cx = Math.floor(COLS / 2), cy = Math.floor(ROWS / 2);
+    snake = [{ x: cx, y: cy }, { x: cx - 1, y: cy }, { x: cx - 2, y: cy }];
+    dir = { x: 1, y: 0 }; queue = []; score = 0; stepTime = 1 / 8; acc = 0; golden = null; apple = null;
+    apple = freeCell(); particles = [];
+    updateHud();
+  }
+
+  function updateHud() {
+    $("score").textContent = score;
+    $("best").textContent = best;
+    $("speed").textContent = Math.round((1 / stepTime - 7) * 10) / 10;
+  }
+
+  function burst(x, y, color, n = 16) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 160;
+      particles.push({ x: (x + 0.5) * cell, y: (y + 0.5) * cell, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.6 + Math.random() * 0.4, color });
+    }
+  }
+
+  function turn(x, y) {
+    if (state === "menu" || state === "over") { start(); }
+    const lastDir = queue.length ? queue[queue.length - 1] : dir;
+    if ((x === -lastDir.x && y === -lastDir.y) || (x === lastDir.x && y === lastDir.y)) return;
+    if (queue.length < 2) queue.push({ x, y });
+  }
+
+  // Attract mode: on the start screen a greedy autopilot plays so the board is never static.
+  function autopilot() {
+    const head = snake[0];
+    const wrap = (v, n) => (v + n) % n;
+    const options = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([x, y]) => !(x === -dir.x && y === -dir.y));
+    const safe = options.filter(([x, y]) => {
+      const nx = wrap(head.x + x, COLS), ny = wrap(head.y + y, ROWS);
+      return !snake.slice(0, -1).some(p => p.x === nx && p.y === ny);
+    });
+    const target = golden || apple;
+    const dist = ([x, y]) => {
+      const dx = Math.abs(wrap(head.x + x, COLS) - target.x), dy = Math.abs(wrap(head.y + y, ROWS) - target.y);
+      return Math.min(dx, COLS - dx) + Math.min(dy, ROWS - dy);
+    };
+    const pool = (safe.length ? safe : options).sort((a, b) => dist(a) - dist(b));
+    dir = { x: pool[0][0], y: pool[0][1] };
+  }
+
+  function step() {
+    if (state === "menu") autopilot();
+    else if (queue.length) dir = queue.shift();
+    const head = { x: (snake[0].x + dir.x + COLS) % COLS, y: (snake[0].y + dir.y + ROWS) % ROWS };
+    const ateApple = head.x === apple.x && head.y === apple.y;
+    const ateGolden = golden && head.x === golden.x && head.y === golden.y;
+    const body = ateApple || ateGolden ? snake : snake.slice(0, -1);
+    if (body.some(s => s.x === head.x && s.y === head.y)) return state === "menu" ? reset() : gameOver();
+    snake.unshift(head);
+    if (ateApple) {
+      score += 1; burst(head.x, head.y, "#ff4d6d");
+      stepTime = 1 / Math.min(18, 8 + score * 0.25);
+      apple = freeCell();
+      if (!golden && Math.random() < 0.2) golden = { ...freeCell(), ttl: 6 };
+    } else if (ateGolden) {
+      score += 5; burst(head.x, head.y, "#ffd23f", 28); shake = 0.25; golden = null;
+    } else {
+      snake.pop();
+    }
+    updateHud();
+  }
+
+  function gameOver() {
+    state = "over"; shake = 0.4;
+    snake.forEach((s, i) => i % 2 === 0 && burst(s.x, s.y, "#22ffc8", 4));
+    if (score > best) { best = score; store.set("neon-snake-best", best); }
+    updateHud();
+    $("title").textContent = "Game over";
+    $("message").innerHTML = `You scored <b style="color:#fff">${score}</b>${score >= best && score > 0 ? " — a new best!" : `. Best: ${best}`}`;
+    $("start").textContent = "Play again";
+    setTimeout(() => { if (state === "over") $("overlay").classList.remove("hidden"); }, 450);
+  }
+
+  function start() {
+    reset(); state = "play"; updateHud(); $("overlay").classList.add("hidden");
+  }
+
+  function togglePause() {
+    if (state === "play") { state = "paused"; $("title").textContent = "Paused"; $("message").textContent = "Press P or tap Resume."; $("start").textContent = "Resume"; $("overlay").classList.remove("hidden"); }
+    else if (state === "paused") { state = "play"; $("overlay").classList.add("hidden"); }
+  }
+
+  $("start").addEventListener("click", () => (state === "paused" ? togglePause() : start()));
+
+  const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
+  window.addEventListener("keydown", e => {
+    if (KEYS[e.code]) { e.preventDefault(); if (state !== "paused") turn(...KEYS[e.code]); }
+    else if (e.code === "KeyP" || e.code === "Escape") togglePause();
+    else if ((e.code === "Space" || e.code === "Enter") && state !== "play") { e.preventDefault(); state === "paused" ? togglePause() : start(); }
+  });
+
+  let touch = null;
+  window.addEventListener("touchstart", e => { touch = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+  window.addEventListener("touchmove", e => {
+    if (!touch) return;
+    const dx = e.touches[0].clientX - touch.x, dy = e.touches[0].clientY - touch.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    if (state === "play") Math.abs(dx) > Math.abs(dy) ? turn(Math.sign(dx), 0) : turn(0, Math.sign(dy));
+    touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+
+  function draw(dt) {
+    const w = cell * COLS, h = cell * ROWS;
+    ctx.save();
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * 10 * shake, (Math.random() - 0.5) * 10 * shake);
+    ctx.fillStyle = "#0a1022"; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#111a35"; ctx.lineWidth = 1;
+    for (let i = 1; i < COLS; i++) { ctx.beginPath(); ctx.moveTo(i * cell + 0.5, 0); ctx.lineTo(i * cell + 0.5, h); ctx.stroke(); }
+    for (let i = 1; i < ROWS; i++) { ctx.beginPath(); ctx.moveTo(0, i * cell + 0.5); ctx.lineTo(w, i * cell + 0.5); ctx.stroke(); }
+
+    const glow = (color, blur) => { ctx.shadowColor = color; ctx.shadowBlur = blur; };
+    // apple
+    const bob = Math.sin(pulse * 6) * 0.08;
+    glow("#ff4d6d", 18); ctx.fillStyle = "#ff4d6d";
+    ctx.beginPath(); ctx.arc((apple.x + 0.5) * cell, (apple.y + 0.5) * cell, cell * (0.34 + bob), 0, Math.PI * 2); ctx.fill();
+    if (golden) {
+      glow("#ffd23f", 26); ctx.fillStyle = golden.ttl < 2 && Math.floor(pulse * 8) % 2 ? "#a88a2a" : "#ffd23f";
+      ctx.beginPath(); ctx.arc((golden.x + 0.5) * cell, (golden.y + 0.5) * cell, cell * 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+    // snake
+    snake.forEach((s, i) => {
+      const t = i / Math.max(1, snake.length - 1);
+      const color = `hsl(${165 + t * 110}, 100%, ${62 - t * 12}%)`;
+      glow(color, i === 0 ? 22 : 10); ctx.fillStyle = color;
+      const pad = i === 0 ? 1 : 2 + t * 2;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(s.x * cell + pad, s.y * cell + pad, cell - pad * 2, cell - pad * 2, cell * 0.3) : ctx.rect(s.x * cell + pad, s.y * cell + pad, cell - pad * 2, cell - pad * 2);
+      ctx.fill();
+    });
+    // eyes
+    ctx.shadowBlur = 0; ctx.fillStyle = "#04121a";
+    const hx = (snake[0].x + 0.5) * cell, hy = (snake[0].y + 0.5) * cell, ex = dir.y !== 0 ? cell * 0.18 : 0, ey = dir.x !== 0 ? cell * 0.18 : 0;
+    [[1], [-1]].forEach(([k]) => { ctx.beginPath(); ctx.arc(hx + dir.x * cell * 0.15 + ex * k, hy + dir.y * cell * 0.15 + ey * k, cell * 0.08, 0, Math.PI * 2); ctx.fill(); });
+    // particles
+    particles.forEach(p => { glow(p.color, 12); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4); });
+    ctx.globalAlpha = 1; ctx.restore();
+  }
+
+  function frame(time) {
+    const dt = Math.min(0.05, (time - last) / 1000 || 0);
+    last = time; pulse += dt;
+    if (state === "play" || state === "menu") {
+      acc += dt;
+      const interval = state === "menu" ? 1 / 11 : stepTime;
+      while (acc >= interval && (state === "play" || state === "menu")) { acc -= interval; step(); }
+      if (golden && (golden.ttl -= dt) <= 0) golden = null;
+    }
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; p.life -= dt * 1.4; });
+    particles = particles.filter(p => p.life > 0);
+    shake = Math.max(0, shake - dt);
+    draw(dt);
+    requestAnimationFrame(frame);
+  }
+
+  reset();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

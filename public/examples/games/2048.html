@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>2048</title>
+<style>
+  :root { --size: min(92vw, calc(100vh - 150px), 460px); --gap: calc(var(--size) * 0.03); --tile: calc((var(--size) - var(--gap) * 5) / 4); color-scheme: light; }
+  html, body { margin: 0; height: 100%; background: #faf6ee; color: #4a3f35; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #app { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+  header { width: var(--size); display: flex; align-items: center; gap: 8px; }
+  h1 { margin: 0; font-size: calc(var(--size) * 0.12); line-height: 1; color: #6b5a48; flex: 1; }
+  .score { background: #bbada0; color: #fff; border-radius: 10px; padding: 6px 12px; text-align: center; min-width: 56px; }
+  .score small { display: block; font-size: 10px; letter-spacing: .1em; color: #eee4da; }
+  .score b { font-size: 18px; }
+  .actions { width: var(--size); display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #8f7a66; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 8px 14px; background: #8f7a66; color: #fff; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  #board { position: relative; width: var(--size); height: var(--size); background: #bbada0; border-radius: 14px; padding: var(--gap); box-sizing: border-box; }
+  .cell { position: absolute; top: 0; left: 0; width: var(--tile); height: var(--tile); background: #cdc1b4; border-radius: 8px; }
+  /* The outer .tile only moves (translate); the inner face handles scale animations so they never shift its position. */
+  .tile { position: absolute; top: 0; left: 0; width: var(--tile); height: var(--tile); transition: transform 110ms ease-in-out; z-index: 1; }
+  .tile .face { width: 100%; height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+  .tile.new .face { animation: appear 160ms ease 90ms backwards; }
+  .tile.merged { z-index: 2; }
+  .tile.merged .face { animation: pop 180ms ease 100ms; }
+  @keyframes appear { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
+  @keyframes pop { 50% { transform: scale(1.18); } }
+  #overlay { position: absolute; inset: 0; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #eee4dacc; z-index: 5; font-size: 28px; font-weight: 800; color: #776e65; }
+  #overlay.win { background: #edc22ecc; color: #fff; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>2048</h1>
+    <div class="score"><small>SCORE</small><b id="score">0</b></div>
+    <div class="score"><small>BEST</small><b id="best">0</b></div>
+  </header>
+  <div class="actions">
+    <span>Join the tiles to reach <b>2048</b>! Arrows, WASD or swipe.</span>
+  </div>
+  <div id="board" aria-label="2048 board">
+    <div id="overlay" class="hidden"><span id="overlay-text"></span><div><button id="continue" type="button">Keep going</button> <button id="retry" type="button">Try again</button></div></div>
+  </div>
+  <div class="actions" style="justify-content:center;gap:10px">
+    <button id="undo" type="button" disabled>Undo</button>
+    <button id="new" type="button">New game</button>
+  </div>
+</div>
+<script>
+(() => {
+  const N = 4;
+  const $ = id => document.getElementById(id);
+  const boardEl = $("board");
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sandboxed */ } },
+  };
+  const COLORS = {
+    2: ["#eee4da", "#776e65"], 4: ["#ede0c8", "#776e65"], 8: ["#f2b179", "#fff"], 16: ["#f59563", "#fff"], 32: ["#f67c5f", "#fff"],
+    64: ["#f65e3b", "#fff"], 128: ["#edcf72", "#fff"], 256: ["#edcc61", "#fff"], 512: ["#edc850", "#fff"], 1024: ["#edc53f", "#fff"], 2048: ["#edc22e", "#fff"],
+  };
+
+  let tiles = [], nextId = 1, score = 0, best = store.get("2048-best", 0), won = false, keepPlaying = false, over = false, history = null, animating = false;
+
+  for (let i = 0; i < N * N; i++) {
+    const c = document.createElement("div"); c.className = "cell";
+    c.style.transform = pos(Math.floor(i / N), i % N);
+    boardEl.appendChild(c);
+  }
+
+  function pos(r, c) {
+    return `translate(calc(var(--gap) + ${c} * (var(--tile) + var(--gap))), calc(var(--gap) + ${r} * (var(--tile) + var(--gap))))`;
+  }
+
+  function cellsFree() {
+    const free = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (!tiles.some(t => t.r === r && t.c === c)) free.push({ r, c });
+    return free;
+  }
+
+  function addRandom() {
+    const free = cellsFree();
+    if (!free.length) return;
+    const { r, c } = free[Math.floor(Math.random() * free.length)];
+    tiles.push({ id: nextId++, r, c, value: Math.random() < 0.9 ? 2 : 4, isNew: true });
+  }
+
+  function render() {
+    const existing = new Map([...boardEl.querySelectorAll(".tile")].map(el => [Number(el.dataset.id), el]));
+    tiles.forEach(t => {
+      let el = existing.get(t.id);
+      if (!el) {
+        el = document.createElement("div"); el.className = "tile"; el.dataset.id = t.id;
+        el.appendChild(document.createElement("div")).className = "face";
+        boardEl.appendChild(el);
+      }
+      existing.delete(t.id);
+      const [bg, fg] = COLORS[t.value] || ["#3c3a32", "#fff"];
+      const face = el.firstChild;
+      face.style.background = bg; face.style.color = fg;
+      face.style.fontSize = `calc(var(--tile) * ${t.value < 100 ? 0.48 : t.value < 1000 ? 0.4 : 0.32})`;
+      face.textContent = t.value;
+      el.style.transform = pos(t.r, t.c);
+      el.classList.toggle("new", !!t.isNew);
+      el.classList.toggle("merged", !!t.merged);
+      if (t.mergedFrom) el.style.zIndex = 0;
+    });
+    existing.forEach(el => el.remove());
+    $("score").textContent = score;
+    $("best").textContent = best;
+    $("undo").disabled = !history;
+  }
+
+  function newGame() {
+    tiles = []; score = 0; won = false; keepPlaying = false; over = false; history = null;
+    boardEl.querySelectorAll(".tile").forEach(el => el.remove());
+    addRandom(); addRandom(); render(); $("overlay").classList.add("hidden");
+  }
+
+  function snapshot() { return { tiles: tiles.map(t => ({ id: t.id, r: t.r, c: t.c, value: t.value })), score }; }
+
+  function move(dr, dc) {
+    if (over || animating || (won && !keepPlaying)) return;
+    const before = snapshot();
+    tiles = tiles.filter(t => !t.mergedFrom).map(t => ({ ...t, isNew: false, merged: false }));
+    const grid = Array.from({ length: N }, () => Array(N).fill(null));
+    tiles.forEach(t => (grid[t.r][t.c] = t));
+    const order = [...Array(N).keys()];
+    const rows = dr > 0 ? order.slice().reverse() : order, cols = dc > 0 ? order.slice().reverse() : order;
+    let moved = false;
+    for (const r of rows) for (const c of cols) {
+      const t = grid[r][c];
+      if (!t) continue;
+      let nr = r, nc = c;
+      while (true) {
+        const tr = nr + dr, tc = nc + dc;
+        if (tr < 0 || tr >= N || tc < 0 || tc >= N) break;
+        const other = grid[tr][tc];
+        if (!other) { nr = tr; nc = tc; continue; }
+        if (other.value === t.value && !other.merged) {
+          grid[r][c] = null;
+          other.value *= 2; other.merged = true; score += other.value;
+          t.r = tr; t.c = tc; t.mergedFrom = true;
+          if (other.value === 2048 && !won) won = true;
+          moved = true;
+        }
+        break;
+      }
+      if (!t.mergedFrom && (nr !== r || nc !== c)) {
+        grid[r][c] = null; grid[nr][nc] = t; t.r = nr; t.c = nc; moved = true;
+      }
+    }
+    if (!moved) { tiles.forEach(t => (t.merged = false)); return; }
+    history = before;
+    // Show merged values only after the slide finishes.
+    const mergedTargets = tiles.filter(t => t.merged);
+    mergedTargets.forEach(t => { t.value /= 2; });
+    animating = true;
+    render();
+    setTimeout(() => {
+      mergedTargets.forEach(t => { t.value *= 2; });
+      tiles = tiles.filter(t => !t.mergedFrom);
+      addRandom();
+      if (score > best) { best = score; store.set("2048-best", best); }
+      render();
+      animating = false;
+      if (won && !keepPlaying) showOverlay("You win!", true);
+      else if (!canMove()) { over = true; showOverlay("Game over!", false); }
+    }, 115);
+  }
+
+  function canMove() {
+    if (cellsFree().length) return true;
+    const at = (r, c) => tiles.find(t => t.r === r && t.c === c);
+    for (const t of tiles) {
+      const right = at(t.r, t.c + 1), down = at(t.r + 1, t.c);
+      if ((right && right.value === t.value) || (down && down.value === t.value)) return true;
+    }
+    return false;
+  }
+
+  function showOverlay(text, win) {
+    $("overlay-text").textContent = text;
+    $("overlay").classList.remove("hidden");
+    $("overlay").classList.toggle("win", win);
+    $("continue").classList.toggle("hidden", !win);
+  }
+
+  function undo() {
+    if (!history || animating) return;
+    boardEl.querySelectorAll(".tile").forEach(el => el.remove());
+    tiles = history.tiles.map(t => ({ ...t })); score = history.score; history = null; over = false;
+    $("overlay").classList.add("hidden");
+    render();
+  }
+
+  $("new").addEventListener("click", newGame);
+  $("retry").addEventListener("click", newGame);
+  $("undo").addEventListener("click", undo);
+  $("continue").addEventListener("click", () => { keepPlaying = true; $("overlay").classList.add("hidden"); });
+
+  const KEYS = { ArrowUp: [-1, 0], KeyW: [-1, 0], ArrowDown: [1, 0], KeyS: [1, 0], ArrowLeft: [0, -1], KeyA: [0, -1], ArrowRight: [0, 1], KeyD: [0, 1] };
+  addEventListener("keydown", e => {
+    if (KEYS[e.code]) { e.preventDefault(); move(...KEYS[e.code]); }
+    else if (e.code === "KeyU" || (e.code === "KeyZ" && (e.ctrlKey || e.metaKey))) undo();
+  });
+  let touch = null;
+  addEventListener("touchstart", e => { touch = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+  addEventListener("touchend", e => {
+    if (!touch) return;
+    const dx = e.changedTouches[0].clientX - touch.x, dy = e.changedTouches[0].clientY - touch.y;
+    touch = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    Math.abs(dx) > Math.abs(dy) ? move(0, Math.sign(dx)) : move(Math.sign(dy), 0);
+  });
+  // Mouse drag works like a swipe for desktop users without a keyboard focus.
+  let drag = null;
+  boardEl.addEventListener("mousedown", e => { drag = { x: e.clientX, y: e.clientY }; });
+  addEventListener("mouseup", e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+    Math.abs(dx) > Math.abs(dy) ? move(0, Math.sign(dx)) : move(Math.sign(dy), 0);
+  });
+
+  newGame();
+})();
+</script>
+</body>
+</html>

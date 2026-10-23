@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Memory Match</title>
+<style>
+  html, body { margin: 0; height: 100%; background: linear-gradient(160deg, #ffe7f1, #e6f0ff 55%, #eafff3); color: #3b3355; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none; }
+  #app { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 12px; box-sizing: border-box; }
+  h1 { margin: 0; font-size: 28px; color: #6b4de6; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+  .pill { background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 14px; box-shadow: 0 2px 8px #6b4de61a; }
+  .pill b { color: #6b4de6; }
+  .levels button { font: inherit; font-size: 14px; font-weight: 600; border: 2px solid #d9d0ff; background: #fff; color: #6b4de6; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  .levels button.active { background: #6b4de6; border-color: #6b4de6; color: #fff; }
+  #grid { display: grid; gap: var(--gap); }
+  .card { width: var(--card); height: var(--card); perspective: 600px; cursor: pointer; }
+  .inner { position: relative; width: 100%; height: 100%; transition: transform 0.35s cubic-bezier(.4,.2,.2,1); transform-style: preserve-3d; }
+  .card.flipped .inner, .card.matched .inner { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .back { background: linear-gradient(135deg, #8f7bff, #ff7ab6); box-shadow: 0 4px 0 #6b4de6; }
+  .back::after { content: "?"; color: #ffffffcc; font-size: calc(var(--card) * 0.42); font-weight: 800; }
+  .front { background: #fff; transform: rotateY(180deg); font-size: calc(var(--card) * 0.55); box-shadow: 0 4px 0 #d9d0ff; }
+  .card.matched .front { background: #eafff3; box-shadow: 0 4px 0 #8de0b0; animation: bounce 0.4s ease; }
+  .card.wrong .front { background: #fff0f3; }
+  @keyframes bounce { 50% { transform: rotateY(180deg) scale(1.08); } }
+  #win { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #ffffff99; backdrop-filter: blur(2px); }
+  #win .box { text-align: center; background: #fff; border-radius: 22px; padding: 24px 30px; box-shadow: 0 20px 50px -20px #6b4de680; }
+  #win h2 { margin: 0 0 6px; font-size: 30px; color: #6b4de6; }
+  #win button, #restart { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 10px 22px; background: #6b4de6; color: #fff; cursor: pointer; margin-top: 10px; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Memory Match</h1>
+  <div class="bar levels" role="radiogroup" aria-label="Difficulty">
+    <button data-level="easy" type="button">Easy</button>
+    <button data-level="medium" type="button">Medium</button>
+    <button data-level="hard" type="button">Hard</button>
+  </div>
+  <div class="bar">
+    <span class="pill">Moves <b id="moves">0</b></span>
+    <span class="pill">Time <b id="time">0:00</b></span>
+    <span class="pill">Pairs <b id="pairs">0/0</b></span>
+    <span class="pill">Best <b id="best">–</b></span>
+  </div>
+  <div id="grid" aria-label="Cards"></div>
+  <button id="restart" type="button">Shuffle again</button>
+</div>
+<div id="win" class="hidden"><div class="box"><h2>You did it! 🎉</h2><p id="win-text"></p><button id="again" type="button">Play again</button></div></div>
+<canvas id="confetti"></canvas>
+<script>
+(() => {
+  const LEVELS = { easy: { cols: 4, rows: 3 }, medium: { cols: 4, rows: 4 }, hard: { cols: 6, rows: 5 } };
+  const EMOJI = ["🐶", "🐱", "🦊", "🐼", "🐸", "🦁", "🐵", "🐧", "🐙", "🦄", "🐝", "🐢", "🍓", "🍉", "🍩", "🌈", "🚀", "⚽"];
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sandboxed */ } },
+  };
+  let level = "easy", cards = [], open = [], moves = 0, matched = 0, startTime = 0, timer = null, locked = false;
+
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  function size() {
+    const { cols, rows } = LEVELS[level];
+    const gap = Math.max(6, Math.min(12, innerWidth / 60));
+    const card = Math.floor(Math.min((innerWidth - 32 - gap * (cols - 1)) / cols, (innerHeight - 240 - gap * (rows - 1)) / rows, 120));
+    document.documentElement.style.setProperty("--card", Math.max(44, card) + "px");
+    document.documentElement.style.setProperty("--gap", gap + "px");
+    $("grid").style.gridTemplateColumns = `repeat(${cols}, var(--card))`;
+  }
+  addEventListener("resize", size);
+
+  function fmt(sec) { return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }
+  function elapsed() { return startTime ? Math.floor((Date.now() - startTime) / 1000) : 0; }
+
+  function newGame() {
+    const { cols, rows } = LEVELS[level];
+    const pairs = (cols * rows) / 2;
+    const faces = shuffle(shuffle(EMOJI.slice()).slice(0, pairs).flatMap(e => [e, e]));
+    cards = faces.map((face, i) => ({ id: i, face, state: "down" }));
+    open = []; moves = 0; matched = 0; startTime = 0; locked = false;
+    clearInterval(timer); timer = null;
+    document.querySelectorAll(".levels button").forEach(b => b.classList.toggle("active", b.dataset.level === level));
+    const grid = $("grid"); grid.innerHTML = "";
+    cards.forEach(c => {
+      const el = document.createElement("div");
+      el.className = "card"; el.dataset.id = c.id; el.setAttribute("role", "button"); el.setAttribute("aria-label", "Hidden card"); el.tabIndex = 0;
+      el.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front">${c.face}</div></div>`;
+      el.addEventListener("click", () => flip(c.id));
+      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(c.id); } });
+      grid.appendChild(el);
+    });
+    size(); hud(); $("win").classList.add("hidden");
+  }
+
+  function hud() {
+    $("moves").textContent = moves; $("time").textContent = fmt(elapsed());
+    $("pairs").textContent = `${matched}/${cards.length / 2}`;
+    const best = store.get(`memory-best-${level}`, null);
+    $("best").textContent = best ? `${best.moves} moves` : "–";
+  }
+
+  function el(id) { return document.querySelector(`.card[data-id="${id}"]`); }
+
+  function flip(id) {
+    const card = cards[id];
+    if (locked || card.state !== "down") return;
+    if (!startTime) { startTime = Date.now(); timer = setInterval(hud, 500); }
+    card.state = "up"; el(id).classList.add("flipped"); el(id).setAttribute("aria-label", card.face);
+    open.push(card);
+    if (open.length < 2) return;
+    moves++;
+    const [a, b] = open;
+    if (a.face === b.face) {
+      a.state = b.state = "matched"; open = [];
+      [a, b].forEach(c => el(c.id).classList.add("matched"));
+      matched++;
+      if (matched === cards.length / 2) setTimeout(win, 450);
+    } else {
+      locked = true;
+      [a, b].forEach(c => el(c.id).classList.add("wrong"));
+      setTimeout(() => {
+        [a, b].forEach(c => { c.state = "down"; const e = el(c.id); e.classList.remove("flipped", "wrong"); e.setAttribute("aria-label", "Hidden card"); });
+        open = []; locked = false;
+      }, 750);
+    }
+    hud();
+  }
+
+  function win() {
+    clearInterval(timer);
+    const sec = elapsed();
+    const best = store.get(`memory-best-${level}`, null);
+    const record = !best || moves < best.moves;
+    if (record) store.set(`memory-best-${level}`, { moves, sec });
+    $("win-text").textContent = `${moves} moves in ${fmt(sec)}${record ? " · new best!" : ""}`;
+    $("win").classList.remove("hidden");
+    hud(); confetti();
+  }
+
+  function confetti() {
+    const c = $("confetti"), ctx = c.getContext("2d");
+    c.width = innerWidth; c.height = innerHeight;
+    const colors = ["#6b4de6", "#ff7ab6", "#ffd84d", "#4dd99a", "#36b6ff"];
+    const bits = Array.from({ length: 160 }, () => ({ x: Math.random() * c.width, y: -20 - Math.random() * c.height * 0.5, vx: (Math.random() - 0.5) * 120, vy: 120 + Math.random() * 220, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 10, color: colors[Math.floor(Math.random() * colors.length)], w: 6 + Math.random() * 6 }));
+    let last = performance.now(), elapsedT = 0;
+    (function tick(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; elapsedT += dt;
+      ctx.clearRect(0, 0, c.width, c.height);
+      bits.forEach(b => { b.x += b.vx * dt; b.y += b.vy * dt; b.r += b.vr * dt; ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r); ctx.fillStyle = b.color; ctx.fillRect(-b.w / 2, -b.w / 4, b.w, b.w / 2); ctx.restore(); });
+      if (elapsedT < 4) requestAnimationFrame(tick); else ctx.clearRect(0, 0, c.width, c.height);
+    })(last);
+  }
+
+  document.querySelectorAll(".levels button").forEach(b => b.addEventListener("click", () => { level = b.dataset.level; newGame(); }));
+  $("restart").addEventListener("click", newGame);
+  $("again").addEventListener("click", newGame);
+  newGame();
+})();
+</script>
+</body>
+</html>

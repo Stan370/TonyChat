@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Block Stacker</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: radial-gradient(ellipse at top, #1a1440, #07070f 70%); color: #e9e7ff; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 12px; box-sizing: border-box; }
+  #board { border-radius: 10px; box-shadow: 0 0 0 1px #2c2760, 0 24px 70px -20px #7b5cff90; background: #0b0a1a; }
+  #side { display: flex; flex-direction: column; gap: 12px; width: 140px; }
+  .box { background: #120f2acc; border: 1px solid #2c2760; border-radius: 14px; padding: 10px 12px; }
+  .box h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .14em; color: #8e86c9; }
+  .stat { display: flex; justify-content: space-between; font-size: 13px; color: #a9a2dd; margin: 3px 0; }
+  .stat b { color: #fff; font-size: 15px; }
+  .help { font-size: 11px; line-height: 1.7; color: #7d77b0; }
+  #pad { position: fixed; left: 0; right: 0; bottom: 10px; display: none; justify-content: center; gap: 10px; }
+  #pad button { width: 58px; height: 52px; border-radius: 14px; border: 1px solid #3a3380; background: #1a1640; color: #e9e7ff; font-size: 20px; }
+  #pad button:active { background: #3a3380; }
+  body.touch #pad { display: flex; }
+  body.narrow #app { flex-direction: column; justify-content: flex-start; padding-top: 10px; }
+  body.narrow #side { flex-direction: row; width: auto; order: -1; }
+  body.narrow .help { display: none; }
+  body.narrow .box { padding: 6px 10px; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #05050c99; backdrop-filter: blur(3px); }
+  #panel { text-align: center; background: #120f2af2; border: 1px solid #3a3380; border-radius: 18px; padding: 24px 30px; max-width: 300px; }
+  #panel h1 { margin: 0 0 8px; font-size: 30px; background: linear-gradient(90deg, #ff5ea8, #8f7bff, #36d6ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #panel p { margin: 6px 0; color: #b9b3ea; font-size: 14px; line-height: 1.5; }
+  #panel button { margin-top: 12px; font: inherit; font-weight: 700; color: #fff; background: linear-gradient(90deg, #ff5ea8, #8f7bff); border: 0; border-radius: 999px; padding: 10px 24px; cursor: pointer; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="board" aria-label="Game board"></canvas>
+  <div id="side">
+    <div class="box"><h3>NEXT</h3><canvas id="next"></canvas></div>
+    <div class="box">
+      <div class="stat">Score <b id="score">0</b></div>
+      <div class="stat">Level <b id="level">1</b></div>
+      <div class="stat">Lines <b id="lines">0</b></div>
+      <div class="stat">Best <b id="best">0</b></div>
+    </div>
+    <div class="box help">← → move<br>↑ / X rotate · Z rotate back<br>↓ soft drop · Space hard drop<br>P pause</div>
+  </div>
+</div>
+<div id="pad">
+  <button data-act="left" aria-label="Move left">◀</button>
+  <button data-act="rotate" aria-label="Rotate">⟳</button>
+  <button data-act="down" aria-label="Soft drop">▼</button>
+  <button data-act="drop" aria-label="Hard drop">⤓</button>
+  <button data-act="right" aria-label="Move right">▶</button>
+</div>
+<div id="overlay">
+  <div id="panel">
+    <h1 id="title">Block Stacker</h1>
+    <p id="message">Clear lines by filling rows. Every 10 lines the level and speed go up.</p>
+    <button id="start" type="button">Play</button>
+  </div>
+</div>
+<script>
+(() => {
+  const W = 10, H = 20;
+  const SHAPES = {
+    I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    O: [[1,1],[1,1]],
+    T: [[0,1,0],[1,1,1],[0,0,0]],
+    S: [[0,1,1],[1,1,0],[0,0,0]],
+    Z: [[1,1,0],[0,1,1],[0,0,0]],
+    J: [[1,0,0],[1,1,1],[0,0,0]],
+    L: [[0,0,1],[1,1,1],[0,0,0]],
+  };
+  const COLORS = { I: "#36d6ff", O: "#ffd84d", T: "#b46bff", S: "#4dff9a", Z: "#ff4d6d", J: "#4d7bff", L: "#ff9a3d" };
+  const LINE_POINTS = [0, 100, 300, 500, 800];
+  const $ = id => document.getElementById(id);
+  const board = $("board"), bctx = board.getContext("2d");
+  const next = $("next"), nctx = next.getContext("2d");
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sandboxed */ } },
+  };
+
+  let cell = 28, grid, piece, bag = [], queue = [], score, lines, level, best = store.get("block-stacker-best", 0);
+  let state = "menu", fallAcc = 0, lockTimer = 0, lockResets = 0, clearing = null, flashT = 0, particles = [];
+  const held = { left: false, right: false, down: false };
+  let dasDir = 0, dasTimer = 0;
+  $("best").textContent = best;
+
+  const isTouch = matchMedia("(pointer: coarse)").matches;
+  function layout() {
+    const narrow = innerWidth < 560;
+    document.body.classList.toggle("narrow", narrow);
+    document.body.classList.toggle("touch", isTouch || narrow);
+    const padH = isTouch || narrow ? 80 : 0, topH = narrow ? 76 : 0, sideW = narrow ? 0 : 160;
+    cell = Math.max(12, Math.floor(Math.min((innerHeight - 30 - padH - topH) / H, (innerWidth - 40 - sideW) / W)));
+    const dpr = devicePixelRatio || 1;
+    for (const [c, ctx, w, h] of [[board, bctx, W * cell, H * cell], [next, nctx, narrow ? 90 : 116, narrow ? 46 : 150]]) {
+      c.style.width = w + "px"; c.style.height = h + "px"; c.width = w * dpr; c.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+  addEventListener("resize", layout);
+  layout();
+
+  function refillBag() { const b = Object.keys(SHAPES); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } bag.push(...b); }
+  function takeNext() { while (queue.length < 4) { if (!bag.length) refillBag(); queue.push(bag.shift()); } return queue.shift(); }
+
+  function spawn() {
+    const type = takeNext();
+    const m = SHAPES[type].map(r => r.slice());
+    piece = { type, m, x: Math.floor((W - m[0].length) / 2), y: type === "I" ? -1 : 0 };
+    lockTimer = 0; lockResets = 0;
+    if (collides(piece.m, piece.x, piece.y)) gameOver();
+  }
+
+  function collides(m, px, py) {
+    for (let y = 0; y < m.length; y++) for (let x = 0; x < m[y].length; x++) {
+      if (!m[y][x]) continue;
+      const gx = px + x, gy = py + y;
+      if (gx < 0 || gx >= W || gy >= H) return true;
+      if (gy >= 0 && grid[gy][gx]) return true;
+    }
+    return false;
+  }
+
+  function rotate(m, dir) {
+    const n = m.length, r = m.map(row => row.slice());
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) r[y][x] = dir > 0 ? m[n - 1 - x][y] : m[x][n - 1 - y];
+    return r;
+  }
+
+  function touchLock() { if (lockTimer > 0 && lockResets < 15) { lockTimer = 0; lockResets++; } }
+
+  function tryRotate(dir) {
+    if (piece.type === "O") return;
+    const r = rotate(piece.m, dir);
+    for (const [dx, dy] of [[0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0], [0, -1], [-1, -1], [1, -1]]) {
+      if (!collides(r, piece.x + dx, piece.y + dy)) { piece.m = r; piece.x += dx; piece.y += dy; touchLock(); return; }
+    }
+  }
+
+  function move(dx) { if (!collides(piece.m, piece.x + dx, piece.y)) { piece.x += dx; touchLock(); return true; } return false; }
+  function ghostY() { let y = piece.y; while (!collides(piece.m, piece.x, y + 1)) y++; return y; }
+
+  function hardDrop() {
+    const y = ghostY();
+    score += (y - piece.y) * 2; piece.y = y; lock();
+  }
+
+  function lock() {
+    piece.m.forEach((row, y) => row.forEach((v, x) => { if (v && piece.y + y >= 0) grid[piece.y + y][piece.x + x] = piece.type; }));
+    if (piece.m.some((row, y) => row.some(v => v) && piece.y + y < 0)) return gameOver();
+    const full = [];
+    grid.forEach((row, y) => { if (row.every(Boolean)) full.push(y); });
+    if (full.length) {
+      clearing = full; flashT = 0.22;
+      full.forEach(y => { for (let x = 0; x < W; x++) for (let i = 0; i < 3; i++) particles.push({ x: (x + 0.5) * cell, y: (y + 0.5) * cell, vx: (Math.random() - 0.5) * 320, vy: (Math.random() - 0.8) * 260, life: 0.7, color: COLORS[grid[y][x]] }); });
+      piece = null;
+    } else {
+      spawn();
+    }
+    updateHud();
+  }
+
+  function finishClear() {
+    const n = clearing.length;
+    grid = grid.filter((_, y) => !clearing.includes(y));
+    while (grid.length < H) grid.unshift(Array(W).fill(null));
+    lines += n; score += LINE_POINTS[n] * level; level = Math.floor(lines / 10) + 1;
+    clearing = null; spawn(); updateHud();
+  }
+
+  function updateHud() {
+    $("score").textContent = score; $("level").textContent = level; $("lines").textContent = lines; $("best").textContent = Math.max(best, score);
+  }
+
+  function start() {
+    grid = Array.from({ length: H }, () => Array(W).fill(null));
+    bag = []; queue = []; score = 0; lines = 0; level = 1; fallAcc = 0; particles = []; clearing = null;
+    spawn(); updateHud(); state = "play"; $("overlay").classList.add("hidden");
+  }
+
+  function gameOver() {
+    state = "over";
+    if (score > best) { best = score; store.set("block-stacker-best", best); }
+    $("title").textContent = "Game over";
+    $("message").innerHTML = `Score <b style="color:#fff">${score}</b> · Lines ${lines} · Level ${level}<br>${score >= best && score > 0 ? "New best!" : "Best: " + best}`;
+    $("start").textContent = "Play again";
+    $("overlay").classList.remove("hidden");
+    updateHud();
+  }
+
+  function pause() {
+    if (state === "play") { state = "paused"; $("title").textContent = "Paused"; $("message").textContent = "Take a breath."; $("start").textContent = "Resume"; $("overlay").classList.remove("hidden"); }
+    else if (state === "paused") { state = "play"; $("overlay").classList.add("hidden"); }
+  }
+
+  $("start").addEventListener("click", () => (state === "paused" ? pause() : start()));
+
+  function act(action) {
+    if (state !== "play" || !piece) return;
+    if (action === "left") move(-1);
+    else if (action === "right") move(1);
+    else if (action === "rotate") tryRotate(1);
+    else if (action === "rotateBack") tryRotate(-1);
+    else if (action === "drop") hardDrop();
+  }
+
+  addEventListener("keydown", e => {
+    const k = e.code;
+    if (["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "Space"].includes(k)) e.preventDefault();
+    if ((k === "Enter" || k === "Space") && (state === "menu" || state === "over")) return start();
+    if (k === "KeyP" || k === "Escape") return pause();
+    if (e.repeat) return;
+    if (k === "ArrowLeft" || k === "KeyA") { held.left = true; dasDir = -1; dasTimer = 0; act("left"); }
+    else if (k === "ArrowRight" || k === "KeyD") { held.right = true; dasDir = 1; dasTimer = 0; act("right"); }
+    else if (k === "ArrowDown" || k === "KeyS") held.down = true;
+    else if (k === "ArrowUp" || k === "KeyX" || k === "KeyW") act("rotate");
+    else if (k === "KeyZ") act("rotateBack");
+    else if (k === "Space") act("drop");
+  });
+  addEventListener("keyup", e => {
+    if (e.code === "ArrowLeft" || e.code === "KeyA") { held.left = false; dasDir = held.right ? 1 : 0; dasTimer = 0; }
+    if (e.code === "ArrowRight" || e.code === "KeyD") { held.right = false; dasDir = held.left ? -1 : 0; dasTimer = 0; }
+    if (e.code === "ArrowDown" || e.code === "KeyS") held.down = false;
+  });
+
+  document.querySelectorAll("#pad button").forEach(btn => {
+    const action = btn.dataset.act;
+    btn.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      if (state === "menu" || state === "over") return start();
+      if (action === "left" || action === "right") { held[action] = true; dasDir = action === "left" ? -1 : 1; dasTimer = 0; act(action); }
+      else if (action === "down") held.down = true;
+      else act(action);
+    });
+    const release = () => { if (action in held) held[action] = false; if (action === "left" || action === "right") { dasDir = held.left ? -1 : held.right ? 1 : 0; dasTimer = 0; } };
+    btn.addEventListener("pointerup", release); btn.addEventListener("pointerleave", release); btn.addEventListener("pointercancel", release);
+  });
+
+  function drawBlock(ctx, x, y, size, color, alpha = 1) {
+    ctx.globalAlpha = alpha;
+    const g = ctx.createLinearGradient(x, y, x, y + size);
+    g.addColorStop(0, color); g.addColorStop(1, shade(color, -0.35));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x + 1, y + 1, size - 2, size - 2, size * 0.18) : ctx.rect(x + 1, y + 1, size - 2, size - 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.28)"; ctx.fillRect(x + 3, y + 3, size - 6, Math.max(2, size * 0.14));
+    ctx.globalAlpha = 1;
+  }
+  function shade(hex, amt) {
+    const n = parseInt(hex.slice(1), 16);
+    const f = c => Math.max(0, Math.min(255, Math.round(c + c * amt)));
+    return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+  }
+
+  function draw() {
+    const w = W * cell, h = H * cell;
+    bctx.fillStyle = "#0b0a1a"; bctx.fillRect(0, 0, w, h);
+    bctx.strokeStyle = "#16143a"; bctx.lineWidth = 1;
+    for (let x = 1; x < W; x++) { bctx.beginPath(); bctx.moveTo(x * cell + 0.5, 0); bctx.lineTo(x * cell + 0.5, h); bctx.stroke(); }
+    for (let y = 1; y < H; y++) { bctx.beginPath(); bctx.moveTo(0, y * cell + 0.5); bctx.lineTo(w, y * cell + 0.5); bctx.stroke(); }
+    if (grid) grid.forEach((row, y) => row.forEach((t, x) => {
+      if (!t) return;
+      if (clearing && clearing.includes(y)) { bctx.fillStyle = `rgba(255,255,255,${0.4 + 0.6 * Math.abs(Math.sin(flashT * 30))})`; bctx.fillRect(x * cell, y * cell, cell, cell); }
+      else drawBlock(bctx, x * cell, y * cell, cell, COLORS[t]);
+    }));
+    if (piece && state !== "menu") {
+      const gy = ghostY();
+      piece.m.forEach((row, y) => row.forEach((v, x) => {
+        if (!v) return;
+        if (gy + y >= 0) { bctx.strokeStyle = COLORS[piece.type] + "88"; bctx.lineWidth = 2; bctx.strokeRect((piece.x + x) * cell + 3, (gy + y) * cell + 3, cell - 6, cell - 6); }
+        if (piece.y + y >= 0) drawBlock(bctx, (piece.x + x) * cell, (piece.y + y) * cell, cell, COLORS[piece.type]);
+      }));
+    }
+    particles.forEach(p => { bctx.globalAlpha = Math.max(0, p.life); bctx.fillStyle = p.color; bctx.fillRect(p.x - 2, p.y - 2, 4, 4); });
+    bctx.globalAlpha = 1;
+
+    // next preview
+    const nw = parseFloat(next.style.width), nh = parseFloat(next.style.height);
+    nctx.clearRect(0, 0, nw, nh);
+    const narrow = document.body.classList.contains("narrow");
+    const shown = queue.slice(0, narrow ? 1 : 3), s = narrow ? 11 : 14;
+    shown.forEach((type, i) => {
+      const m = SHAPES[type], rows = m.filter(r => r.some(Boolean)), cols = m[0].length;
+      const ox = (nw - cols * s) / 2, oy = narrow ? (nh - rows.length * s) / 2 : 8 + i * 48;
+      rows.forEach((row, y) => row.forEach((v, x) => v && drawBlock(nctx, ox + x * s, oy + y * s, s, COLORS[type])));
+    });
+  }
+
+  let last = 0;
+  function frame(t) {
+    const dt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
+    if (state === "play") {
+      if (clearing) { flashT -= dt; if (flashT <= 0) finishClear(); }
+      else if (piece) {
+        if (dasDir) { dasTimer += dt; while (dasTimer > 0.16) { dasTimer -= 0.045; if (!move(dasDir)) break; } }
+        const gravity = held.down ? 0.035 : Math.max(0.05, 0.8 - (level - 1) * 0.075);
+        fallAcc += dt;
+        while (fallAcc >= gravity && piece) {
+          fallAcc -= gravity;
+          if (!collides(piece.m, piece.x, piece.y + 1)) { piece.y++; if (held.down) score += 1; lockTimer = 0; }
+          else break;
+        }
+        if (piece && collides(piece.m, piece.x, piece.y + 1)) { lockTimer += dt; if (lockTimer > 0.5) lock(); }
+        updateHud();
+      }
+    }
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 700 * dt; p.life -= dt; });
+    particles = particles.filter(p => p.life > 0);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
