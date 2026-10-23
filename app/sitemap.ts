@@ -1,19 +1,18 @@
 import { MetadataRoute } from 'next'
 
+const BASE = 'https://www.tonychat.com'
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    {
-      url: 'https://www.tonychat.com',
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 1,
-    },
-    {
-      url: 'https://www.tonychat.com/chat',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    // Add more URLs as needed
+  const pages: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'] }[] = [
+    { path: '', priority: 1, changeFrequency: 'weekly' },
+    { path: '/store', priority: 0.9, changeFrequency: 'weekly' },
+    { path: '/usecases', priority: 0.9, changeFrequency: 'weekly' },
+    { path: '/chat', priority: 0.7, changeFrequency: 'monthly' },
   ]
-} 
+  return pages.map(({ path, priority, changeFrequency }) => ({
+    url: `${BASE}${path}`,
+    lastModified: new Date(),
+    changeFrequency,
+    priority,
+  }))
+}
