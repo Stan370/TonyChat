@@ -15,7 +15,7 @@
 
 # production
 /build
-
+IMPROVEMENT_PLAN.md
 # misc
 .DS_Store
 *.pem
