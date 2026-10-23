@@ -1,349 +1,324 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Sidebar from "../components/Siderbar";
-import RecommendedCarousel from "../components/RecommendedCarousel";
-import Image from "next/image";
-import { Bot, Agent } from "@/lib/types";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Heart, Plus, Search, User } from "react-feather";
+import AgentCard from "../components/agents/AgentCard";
+import AgentDetailModal from "../components/agents/AgentDetailModal";
+import AgentFormModal from "../components/AgentFormModal";
+import { AGENT_CATEGORIES } from "@/lib/agents";
+import {
+  buildShareUrl,
+  decodeSharedAgent,
+  deleteCustomAgent,
+  getRecentAgentIds,
+  newAgentId,
+  saveCustomAgent,
+  toggleFavorite,
+  useAgents,
+  useFavorites,
+  useModelCatalog,
+} from "@/lib/agentStore";
+import { copyText } from "@/lib/clipboard";
+import { startChat } from "@/lib/startChat";
+import type { Agent } from "@/lib/types";
 
-const mockBots: Bot[] = [
-  {
-    id: "1",
-    name: "Tonychat",
-    description: "AI-powered coding assistant that helps with debugging, code review, and programming best practices.",
-    category: "Development",
-    avatar: "/user.jpg",
-    rating: 4.8,
-    downloads: 12500,
-    price: "free",
-    tags: ["coding", "debugging", "review"],
-    author: "DevTeam"
-  },
-  {
-    id: "2",
-    name: "Content Writer",
-    description: "Professional content creation bot for blogs, articles, and marketing copy.",
-    category: "Writing",
-    avatar: "/cat.png",
-    rating: 4.6,
-    downloads: 8900,
-    price: "premium",
-    tags: ["writing", "content", "marketing"],
-    author: "ContentPro"
-  },
-  {
-    id: "3",
-    name: "Customer Support",
-    description: "24/7 customer service bot with multilingual support and ticket management.",
-    category: "Business",
-    avatar: "/home.png",
-    rating: 4.7,
-    downloads: 15600,
-    price: "premium",
-    tags: ["support", "customer", "service"],
-    author: "SupportAI"
-  },
-  {
-    id: "4",
-    name: "Language Tutor",
-    description: "Interactive language learning companion with conversation practice and grammar help.",
-    category: "Education",
-    avatar: "/1.jpg",
-    rating: 4.9,
-    downloads: 22100,
-    price: "free",
-    tags: ["language", "learning", "education"],
-    author: "EduBot"
-  },
-  {
-    id: "5",
-    name: "Data Analyst",
-    description: "Advanced data analysis and visualization bot for business intelligence.",
-    category: "Analytics",
-    avatar: "/3.jpg",
-    rating: 4.5,
-    downloads: 6800,
-    price: "premium",
-    tags: ["data", "analytics", "visualization"],
-    author: "DataPro"
-  },
-  {
-    id: "6",
-    name: "Creative Designer",
-    description: "AI design assistant for logos, graphics, and creative visual content.",
-    category: "Design",
-    avatar: "/reddit.png",
-    rating: 4.4,
-    downloads: 11200,
-    price: "premium",
-    tags: ["design", "creative", "graphics"],
-    author: "DesignAI"
-  }
-];
+type Scope = "all" | "favorites" | "mine";
+type FormState = { mode: "create" } | { mode: "edit"; agent: Agent } | { mode: "copy"; agent: Agent } | { mode: "import"; agent: Agent } | null;
 
-const categories = ["All", "Development", "Writing", "Business", "Education", "Analytics", "Design"];
-
-export default function Store() {
-  const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("popular");
-
-  const handleUseBot = (bot: Bot) => {
-    // Create a new agent with the bot's information
-    const agentData: Agent = {
-      id: bot.id,
-      name: bot.name,
-      description: bot.description,
-      avatar: bot.avatar,
-      category: bot.category,
-      tags: bot.tags,
-      author: bot.author,
-      systemPrompt: `You are ${bot.name}, ${bot.description}. You specialize in ${bot.tags.join(', ')}. Please help the user with their requests in a professional and helpful manner.`
-    };
-
-    // Store the agent data in localStorage for the chat page to use
-    localStorage.setItem('selectedAgent', JSON.stringify(agentData));
-    
-    // Navigate to chat page
-    router.push('/chat');
-  };
-
-  const filteredBots = mockBots
-    .filter(bot => {
-      const matchesCategory = selectedCategory === "All" || bot.category === selectedCategory;
-      const matchesSearch = bot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          bot.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          bot.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCategory && matchesSearch;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "rating":
-          return b.rating - a.rating;
-        case "downloads":
-          return b.downloads - a.downloads;
-        case "name":
-          return a.name.localeCompare(b.name);
-        default:
-          return b.downloads - a.downloads;
-      }
-    });
-
+export default function StorePage() {
   return (
-    <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">
-      <Sidebar />
-
-      <div className="flex-1 p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Bot Store
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Discover and deploy AI-powered chatbots for your needs
-          </p>
-        </div>
-
-        {/* Recommended Agents Carousel */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Recommended Agents
-          </h2>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-700 p-6">
-            <RecommendedCarousel 
-              autoPlay={true}
-              autoSlideInterval={5000}
-            />
-          </div>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-700 p-6 mb-8">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search bots..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                <svg
-                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Category Filter */}
-            <div className="lg:w-48">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sort */}
-            <div className="lg:w-48">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="rating">Highest Rated</option>
-                <option value="downloads">Most Downloaded</option>
-                <option value="name">Name A-Z</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Bot Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBots.map((bot) => (
-            <div
-              key={bot.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-700 overflow-hidden hover:shadow-lg dark:hover:shadow-gray-600 transition-shadow duration-300"
-            >
-              {/* Bot Image */}
-              <div className="h-48 bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
-                <Image
-                  src={bot.avatar}
-                  alt={bot.name}
-                  width={80}
-                  height={80}
-                  className="rounded-full border-4 border-white shadow-lg"
-                />
-              </div>
-
-              {/* Bot Info */}
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {bot.name}
-                  </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                    bot.price === "free" 
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
-                      : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                  }`}>
-                    {bot.price === "free" ? "Free" : "Premium"}
-                  </span>
-                </div>
-
-                <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">
-                  {bot.description}
-                </p>
-
-                {/* Rating and Downloads */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <svg
-                          key={i}
-                          className={`h-4 w-4 ${
-                            i < Math.floor(bot.rating)
-                              ? "text-yellow-400"
-                              : "text-gray-300 dark:text-gray-600"
-                          }`}
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <span className="ml-1 text-sm text-gray-600 dark:text-gray-300">
-                      {bot.rating}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {bot.downloads.toLocaleString()} downloads
-                  </span>
-                </div>
-
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {bot.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Author */}
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  by {bot.author}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleUseBot(bot)}
-                    className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors duration-200"
-                  >
-                    {bot.price === "free" ? "Use Bot" : "Try Free"}
-                  </button>
-                  <button className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredBots.length === 0 && (
-          <div className="text-center py-12">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 6.291A7.962 7.962 0 0012 9c-2.34 0-4.29-1.009-5.824-2.709"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-              No bots found
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Try adjusting your search or filter criteria.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+    <Suspense fallback={<div className="h-full bg-canvas" />}>
+      <Marketplace />
+    </Suspense>
   );
 }
 
+function Marketplace() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const agents = useAgents();
+  const favorites = useFavorites();
+  const { availability } = useModelCatalog();
+
+  const [scope, setScope] = useState<Scope>("all");
+  const [category, setCategory] = useState("All");
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("featured");
+  const [form, setForm] = useState<FormState>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [recents, setRecents] = useState<string[]>([]);
+
+  const detailId = params.get("agent");
+  const detailAgent = detailId ? agents.find(a => a.id === detailId) : undefined;
+
+  useEffect(() => setRecents(getRecentAgentIds()), []);
+
+  // Import flow: /store?share=<payload>
+  useEffect(() => {
+    const share = params.get("share");
+    if (!share) return;
+    const shared = decodeSharedAgent(share);
+    if (shared) setForm({ mode: "import", agent: shared });
+    else setToast("That share link is invalid or damaged.");
+    router.replace("/store");
+  }, [params, router]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const categories = useMemo(() => {
+    const extra = Array.from(new Set(agents.map(a => a.category))).filter(c => !AGENT_CATEGORIES.includes(c));
+    return [...AGENT_CATEGORIES, ...extra].map(name => ({ name, count: agents.filter(a => a.category === name).length })).filter(c => c.count > 0);
+  }, [agents]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return agents
+      .filter(agent => {
+        if (scope === "favorites" && !favorites.includes(agent.id)) return false;
+        if (scope === "mine" && !agent.custom) return false;
+        if (category !== "All" && agent.category !== category) return false;
+        return (
+          !q ||
+          agent.name.toLowerCase().includes(q) ||
+          agent.description.toLowerCase().includes(q) ||
+          agent.tags.some(tag => tag.toLowerCase().includes(q))
+        );
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case "name":
+            return a.name.localeCompare(b.name);
+          case "recent": {
+            const ra = recents.indexOf(a.id);
+            const rb = recents.indexOf(b.id);
+            return (ra === -1 ? Infinity : ra) - (rb === -1 ? Infinity : rb);
+          }
+          case "newest":
+            return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+          default:
+            return Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+        }
+      });
+  }, [agents, favorites, scope, category, query, sortBy, recents]);
+
+  const showFeatured = scope === "all" && category === "All" && !query.trim();
+  const featured = agents.filter(a => a.featured).slice(0, 3);
+
+  const openAgent = (agent: Agent) => router.push(`/store?agent=${encodeURIComponent(agent.id)}`, { scroll: false });
+  const closeAgent = () => router.push("/store", { scroll: false });
+
+  const share = async (agent: Agent) => {
+    const url = buildShareUrl(agent);
+    setToast((await copyText(url)) ? "Share link copied to clipboard" : "Couldn't copy the link");
+  };
+
+  const submitForm = (draft: Omit<Agent, "id"> & { id?: string }) => {
+    const saved = saveCustomAgent({ ...draft, id: draft.id ?? newAgentId() } as Agent);
+    setForm(null);
+    setScope("mine");
+    setCategory("All");
+    setToast(`Saved ${saved.name}`);
+  };
+
+  const scopeButton = (value: Scope, label: string, icon: React.ReactNode, count?: number) => (
+    <button
+      type="button"
+      onClick={() => setScope(value)}
+      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
+        scope === value ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-elevated hover:text-fg"
+      }`}
+    >
+      {icon}
+      <span className="flex-1 text-left">{label}</span>
+      {count !== undefined && <span className="text-xs text-subtle">{count}</span>}
+    </button>
+  );
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Agent marketplace</h1>
+            <p className="mt-1 text-muted">Specialized AI agents for coding, games, writing, learning and more. Create and share your own.</p>
+          </div>
+          <button type="button" onClick={() => setForm({ mode: "create" })} className="btn-primary self-start sm:self-auto">
+            <Plus size={16} /> Create agent
+          </button>
+        </header>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <Search size={17} className="absolute left-3.5 top-3 text-subtle" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search agents by name, skill or tag"
+              aria-label="Search agents"
+              className="input rounded-2xl py-2.5 pl-10 text-[15px]"
+            />
+          </div>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="Sort agents" className="input w-full rounded-2xl sm:w-48">
+            <option value="featured">Featured first</option>
+            <option value="recent">Recently used</option>
+            <option value="newest">Newest</option>
+            <option value="name">Name A–Z</option>
+          </select>
+        </div>
+
+        <div className="mt-6 lg:grid lg:grid-cols-[210px_1fr] lg:gap-8">
+          {/* Categories: sidebar on desktop, scrollable pills on mobile */}
+          <aside className="hidden lg:block">
+            <nav aria-label="Agent filters" className="sticky top-4 space-y-0.5">
+              {scopeButton("all", "All agents", <span className="w-4 text-center">✦</span>, agents.length)}
+              {scopeButton("favorites", "Favorites", <Heart size={15} />, favorites.length)}
+              {scopeButton("mine", "My agents", <User size={15} />, agents.filter(a => a.custom).length)}
+              <div className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-subtle">Categories</div>
+              {[{ name: "All", count: agents.length }, ...categories].map(c => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setCategory(c.name)}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-sm transition-colors ${
+                    category === c.name ? "bg-elevated font-medium text-fg" : "text-muted hover:bg-elevated hover:text-fg"
+                  }`}
+                >
+                  {c.name}
+                  <span className="text-xs text-subtle">{c.count}</span>
+                </button>
+              ))}
+            </nav>
+          </aside>
+          <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:hidden">
+            {(["all", "favorites", "mine"] as Scope[]).map(s => (
+              <button key={s} type="button" onClick={() => setScope(s)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${scope === s ? "bg-fg text-surface" : "border border-line bg-surface text-muted"}`}>
+                {s === "all" ? "All" : s === "favorites" ? `Favorites (${favorites.length})` : "Mine"}
+              </button>
+            ))}
+            <span className="mx-1 w-px shrink-0 bg-line" />
+            {[{ name: "All" }, ...categories].map(c => (
+              <button key={c.name} type="button" onClick={() => setCategory(c.name)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${category === c.name ? "bg-accent-soft text-accent" : "border border-line bg-surface text-muted"}`}>
+                {c.name === "All" ? "All categories" : c.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-w-0">
+            {showFeatured && (
+              <section className="mb-8">
+                <h2 className="mb-3 text-lg font-semibold">Featured</h2>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {featured.map(agent => (
+                    <AgentCard
+                      key={agent.id}
+                      agent={agent}
+                      variant="featured"
+                      favorite={favorites.includes(agent.id)}
+                      onToggleFavorite={() => toggleFavorite(agent.id)}
+                      onOpen={() => openAgent(agent)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section>
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="text-lg font-semibold">
+                  {scope === "favorites" ? "Favorites" : scope === "mine" ? "My agents" : category === "All" ? "All agents" : category}
+                </h2>
+                <span className="text-sm text-subtle">{filtered.length} agents</span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {filtered.map(agent => (
+                  <AgentCard
+                    key={agent.id}
+                    agent={agent}
+                    favorite={favorites.includes(agent.id)}
+                    onToggleFavorite={() => toggleFavorite(agent.id)}
+                    onOpen={() => openAgent(agent)}
+                  />
+                ))}
+              </div>
+              {filtered.length === 0 && (
+                <div className="rounded-3xl border border-dashed border-line px-6 py-14 text-center">
+                  <p className="font-medium">
+                    {scope === "favorites" ? "No favorites yet" : scope === "mine" ? "You haven't created an agent yet" : "No agents found"}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    {scope === "favorites"
+                      ? "Tap the heart on any agent to keep it here."
+                      : scope === "mine"
+                        ? "Create one from scratch, or open any agent and choose “Customize a copy”."
+                        : "Try a different search or category."}
+                  </p>
+                  {scope === "mine" && (
+                    <button type="button" onClick={() => setForm({ mode: "create" })} className="btn-primary mt-4">
+                      <Plus size={16} /> Create agent
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </div>
+
+      {detailAgent && !form && (
+        <AgentDetailModal
+          agent={detailAgent}
+          availability={availability}
+          favorite={favorites.includes(detailAgent.id)}
+          onToggleFavorite={() => toggleFavorite(detailAgent.id)}
+          onClose={closeAgent}
+          onStartChat={prompt => startChat(router.push, { agentId: detailAgent.id, prompt })}
+          onShare={() => share(detailAgent)}
+          onCustomize={
+            detailAgent.custom
+              ? undefined
+              : () => setForm({ mode: "copy", agent: { ...detailAgent, id: newAgentId(), name: `${detailAgent.name} (my copy)`, author: "You", custom: true, featured: false, createdAt: undefined } })
+          }
+          onEdit={detailAgent.custom ? () => setForm({ mode: "edit", agent: detailAgent }) : undefined}
+          onDelete={
+            detailAgent.custom
+              ? () => {
+                  if (!window.confirm(`Delete "${detailAgent.name}"? Its chats in this browser will also be removed.`)) return;
+                  deleteCustomAgent(detailAgent.id);
+                  closeAgent();
+                  setToast(`Deleted ${detailAgent.name}`);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {form && (
+        <AgentFormModal
+          key={form.mode === "create" ? "create" : form.agent.id}
+          title={form.mode === "edit" ? `Edit ${form.agent.name}` : form.mode === "import" ? "Add shared agent" : form.mode === "copy" ? "Customize agent" : "Create an agent"}
+          submitLabel={form.mode === "edit" ? "Save changes" : form.mode === "import" ? "Add to my agents" : "Create agent"}
+          initial={form.mode === "create" ? undefined : form.agent}
+          categories={categories.map(c => c.name)}
+          availability={availability}
+          onSubmit={draft => {
+            submitForm(draft);
+            if (detailId) closeAgent();
+          }}
+          onClose={() => setForm(null)}
+        />
+      )}
+
+      {toast && (
+        <div role="status" className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-fg px-4 py-2 text-sm text-surface shadow-lift animate-slide-up md:bottom-6">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
