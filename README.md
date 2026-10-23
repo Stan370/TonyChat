@@ -4,30 +4,31 @@
 
 ## Features
 
-![Homepage](public/image.png)
+![TonyChat home: a prompt box with agent and model pickers, quick actions and a use case gallery](docs/screenshots/home.jpg)
 
-- **Custom AI Agents:** Create, customize, and deploy AI Agents tailored for your needs.
-- **Workflow Automation:** Build conversations and automation flows using an intuitive visual or code interface.
-- **Multi-Model Support:** Integrate with a variety of large language models and tools.
-- **Community Sharing:** Discover and use bots, prompts, and workflows shared by others.
-- **Extensions & Plugins:** Expand TonyChat’s capabilities with APIs, plugins, and integration hooks.
+- **Prompt-first home.** Describe a task, pick an agent and a model, and go. Quick actions set up common jobs in one click.
+- **Agent marketplace.** 12 built-in agents with tuned instructions and a recommended model. Create your own, customize a copy, favorite, and share an agent with a link.
+- **Live artifacts.** When an agent writes a complete HTML page, game or SVG, it streams into a side panel and then runs in a sandboxed preview, with Code view, versions, reload, download and full-width mode.
+- **Game and web app building.** The Game Builder and Web App Builder agents produce single-file games and sites you can play or use right away.
+- **Use case gallery.** 23 ready-made tasks. 8 ship with playable examples (6 games, 2 web apps) that work without an API key and can be rebuilt or remixed by an agent.
+- **Free models.** Use TonyChat without paying: Google Gemini's free tier, about 20 free OpenRouter models, Groq, Mistral's free plan, Zhipu GLM-4.7-Flash, SiliconFlow's free Qwen and GLM models, or local models through Ollama.
+- **Bring your own key.** Visitors paste their own (free) key in Settings; it is checked with a free read-only call, kept in their browser, and only forwarded with their own requests.
+- **Multi-model.** Claude, GPT, Gemini and the providers above with streaming replies, per-chat model choice, collapsible reasoning for thinking models, and automatic mapping of retired model ids.
+- **Chats and files.** Multiple conversations with search, rename and delete; text-file attachments such as code, CSV and Markdown; Markdown rendering with syntax highlighting.
+- **Light and dark themes, phone-friendly layout.** Everything is stored in the browser, so no database is required.
 
-## Use Cases
+| Live game preview in chat | Playable use case examples |
+| --- | --- |
+| ![Chat with a generated Brick Breaker game running in the preview panel](docs/screenshots/chat-artifact.jpg) | ![Use case modal with a playable Block Stacker example](docs/screenshots/usecase.jpg) |
 
-- Personal AI Assistants
-- Customer Support Bots
-- Educational Tutors/Helpers
-- Work Automation & Scheduling
-- Creative Companions
-- Experimentation with new LLM features and agents
-
+![Agent marketplace with categories, featured agents and search](docs/screenshots/marketplace.jpg)
 
 ## Highlights
 
-- Multi-provider LLM integrations (OpenAI, Google Generative, Anthropic, Azure)
-- Retrieval-Augmented Generation (RAG) microservice (FastAPI + LangChain)
-- Next.js (App Router) + TypeScript + Tailwind CSS frontend
-- Optional Supabase integration for storage and auth
+- Next.js (App Router) + TypeScript + Tailwind CSS, with a small semantic design-token system for light and dark themes
+- Streaming chat API for Anthropic, OpenAI and Google, with legacy routes and model-id migration
+- Sandboxed artifact previews (`sandbox="allow-scripts"` without same-origin access)
+- Retrieval-Augmented Generation (RAG) microservice (FastAPI + LangChain), optional
 
 ## Quick start (local)
 
@@ -48,24 +49,42 @@ npm install
 Create a `.env.local` in the project root. Example variables used by this project include:
 
 ```env
-# Next.js / frontend
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8001
+# Free options (any one is enough; visitors can also add their own keys in Settings)
+GOOGLE_GEMINI_API_KEY=your-google-ai-studio-key
+OPENROUTER_API_KEY=sk-or-...
+GROQ_API_KEY=gsk_...
 
-# LLM / API keys (examples — provide only the ones you use)
+# Paid options
+ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=your-google-gen-api-key
-ANTHROPIC_API_KEY=your-anthropic-key
-AZURE_OPENAI_API_KEY=your-azure-key
-NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT=https://your-azure-endpoint
 
-# Optional / misc
-NEXT_PUBLIC_VERCEL_ENV=development
-GITHUB_TOKEN=ghp_...
+# Optional RAG microservice
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8001
 ```
 
-Note: the project declares many environment variables in `config/server.ts`; only set the keys you need for your chosen providers.
+Note: the project declares many environment variables in `config/server.ts`; only set the keys you need for your chosen providers. Supabase is no longer required: chat history, custom agents and favorites are stored in the browser.
+
+## Supported models
+
+The catalog lives in `lib/modelConfig.ts` and the provider list in `lib/providers.ts` (reviewed 2026-10-23). Free model lists change often, so OpenRouter, Groq, Mistral and Ollama models are also discovered at runtime.
+
+| Provider | What's free | Default model | Key |
+| --- | --- | --- | --- |
+| Google Gemini | Free tier: Gemini 3.8 Flash, 3.5 / 3.1 Flash-Lite (Pro and Argon need billing) | Gemini 3.8 Flash | [AI Studio](https://aistudio.google.com/apikey) |
+| OpenRouter | About 20 `:free` models, 50 requests/day (1,000 after a one-time $10 top-up) | Free router (auto) | [openrouter.ai](https://openrouter.ai/settings/keys) |
+| Groq | Free tier, about 30 requests/min and 1,000/day | GPT-OSS 120B | [console.groq.com](https://console.groq.com/keys) |
+| Mistral | Free Experiment plan (prompts may be used for training) | Mistral Small | [console.mistral.ai](https://console.mistral.ai/api-keys) |
+| Zhipu GLM | GLM-4.7-Flash and GLM-4-Flash, one request at a time | GLM-4.7-Flash | [bigmodel.cn](https://bigmodel.cn) |
+| SiliconFlow | Small models such as Qwen3-8B and GLM-4-9B after identity verification | Qwen3 8B | [siliconflow.cn](https://cloud.siliconflow.cn) |
+| Ollama | Local models on your own machine (self-hosted only) | First installed model | `OLLAMA_BASE_URL` |
+| Anthropic | Paid | Claude Opus 5.5 | [platform.claude.com](https://platform.claude.com/) |
+| OpenAI | Paid | GPT-5.6 Terra | [platform.openai.com](https://platform.openai.com/api-keys) |
+
+**Keys from the server vs. visitor keys.** Keys in the server environment pay for every visitor, so requests on them are limited to catalog models, OpenRouter `:free` models and models the provider lists for that key. A visitor's own key (Settings) can use any model of that provider and is never stored on the server.
+
+**Legacy model ids.** Agents, browsers and API clients that still send retired ids (for example `gpt-4`, `claude-3-sonnet-20240229` or `gemini-1.5-pro`) keep working. `resolveModel()` maps them to the closest current model, and the response carries `X-Model` and `X-Model-Migrated-From` headers. Add explicit mappings to `LEGACY_MODEL_ALIASES` when a provider retires a model.
+
+**Chat API.** `POST /api/chat` with `{ model, systemPrompt, messages: [{ role, content }] }` streams plain text. The old `POST /api/chat/{openai|claude|cluade|gemini|google}` routes with `{ message, model }` still return a JSON string. `GET /api/models` reports which providers the server has configured plus runtime-discovered models; `POST /api/models` verifies a visitor's key. Visitors' keys travel in the `X-Provider-Key` header (and `X-Provider-Region` for Zhipu and SiliconFlow).
 
 3) Start the Next.js dev server
 
@@ -91,21 +110,26 @@ The frontend expects the RAG endpoint at `NEXT_PUBLIC_BACKEND_URL` (default `htt
 ## Project structure (high level)
 
 - `app/` — Next.js frontend (App Router) and API routes. Key folders:
-  - `app/api/chat/` — built-in chat provider routes (openai, google, repo, etc.)
-  - `app/chat/` — UI pages/components for chat and agent management
+  - `app/page.tsx` — home: prompt composer, quick actions, use case gallery, featured agents
+  - `app/chat/` — conversations, streaming chat and the artifact preview panel
+  - `app/store/` — agent marketplace; `app/usecases/` — use case gallery
+  - `app/components/` — shell (navigation, theme), chat, agents, use cases and UI primitives
+  - `app/api/chat/` — unified streaming chat endpoint, legacy per-provider routes, repo chat
 - `backend/` — RAG microservice (FastAPI) and tests
-- `lib/` — helper clients (e.g. `lib/supabase.ts`)
+- `lib/` — model catalog (`modelConfig.ts`), agents (`agents.ts`), use cases (`usecases.ts`), browser storage for agents and chats (`agentStore.ts`), artifact parsing (`artifacts.ts`), server-only provider adapters (`lib/server/`)
+- `public/examples/` — the playable example games and sites used by the gallery, plus their cover images
 - `config/` — server config and environment declarations
 
 ## Environment variables used by the app
 
 Key environment variables referenced in the codebase include (not exhaustive):
 
-- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon/public key
-- `OPENAI_API_KEY` — OpenAI API key
-- `GEMINI_API_KEY` — Google Generative API key
 - `ANTHROPIC_API_KEY` — Anthropic API key
+- `OPENAI_API_KEY` — OpenAI API key
+- `GOOGLE_GEMINI_API_KEY` (or legacy `GEMINI_API_KEY`) — Google Gemini API key
+- `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `ZHIPU_API_KEY`, `SILICONFLOW_API_KEY` — free and free-tier providers
+- `OLLAMA_BASE_URL` — local Ollama server for self-hosted setups
+- `*_BASE_URL` (for example `ANTHROPIC_BASE_URL`, `GROQ_BASE_URL`, `ZHIPU_BASE_URL`) — optional proxy, gateway or international endpoints
 - `AZURE_OPENAI_API_KEY` — Azure OpenAI key
 - `NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT` — Azure OpenAI endpoint
 - `NEXT_PUBLIC_BACKEND_URL` — URL of the RAG or backend API
