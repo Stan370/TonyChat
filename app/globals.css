@@ -2,19 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Semantic color tokens (RGB triplets so Tailwind opacity modifiers work). */
 :root {
-  --dark-mode-color: #c7d6da; /* Dark mode color */
-  --light-mode-color: #191a1a; /* Light mode color */
+  --canvas: 247 247 248;
+  --surface: 255 255 255;
+  --elevated: 241 241 244;
+  --line: 229 229 234;
+  --fg: 24 24 27;
+  --muted: 100 100 112;
+  --subtle: 150 150 160;
+  --accent: 124 58 237;
+  --accent-fg: 255 255 255;
+  --accent-soft: 237 233 254;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  .color-change {
-    color: var(--dark-mode-color);
+.dark {
+  --canvas: 14 14 16;
+  --surface: 24 24 27;
+  --elevated: 36 36 41;
+  --line: 44 44 50;
+  --fg: 244 244 245;
+  --muted: 161 161 170;
+  --subtle: 113 113 122;
+  --accent: 139 92 246;
+  --accent-fg: 255 255 255;
+  --accent-soft: 46 33 84;
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-canvas text-fg antialiased;
+}
+
+/* Thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--line)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--line));
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-accent-fg hover:bg-accent/90;
+  }
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-fg hover:bg-elevated;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:bg-elevated hover:text-fg;
+  }
+  .btn-icon {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-elevated hover:text-fg disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-fg placeholder:text-subtle focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/20;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-card;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/40 hover:text-fg;
+  }
+  .tag {
+    @apply inline-flex items-center rounded-md bg-elevated px-1.5 py-0.5 text-xs text-muted;
   }
 }
 
-@media (prefers-color-scheme: light) {
-  .color-change {
-    color: var(--light-mode-color);
-  }
+/* ---------- Markdown ---------- */
+.markdown {
+  @apply text-[15px] leading-7 text-fg break-words;
 }
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown table {
+  @apply my-3;
+}
+.markdown h1 { @apply mt-6 mb-3 text-2xl font-semibold; }
+.markdown h2 { @apply mt-6 mb-3 text-xl font-semibold; }
+.markdown h3 { @apply mt-5 mb-2 text-lg font-semibold; }
+.markdown h4 { @apply mt-4 mb-2 font-semibold; }
+.markdown ul { @apply list-disc pl-6; }
+.markdown ol { @apply list-decimal pl-6; }
+.markdown li { @apply my-1; }
+.markdown li > p { @apply my-1; }
+.markdown a { @apply text-accent underline underline-offset-2; }
+.markdown blockquote { @apply border-l-4 border-line pl-4 text-muted; }
+.markdown hr { @apply my-6 border-line; }
+.markdown table { @apply block w-full overflow-x-auto border-collapse text-sm; }
+.markdown th,
+.markdown td { @apply border border-line px-3 py-1.5 text-left; }
+.markdown th { @apply bg-elevated font-semibold; }
+.markdown :not(pre) > code {
+  @apply rounded-md bg-elevated px-1.5 py-0.5 font-mono text-[0.85em];
+}
+.markdown img { @apply max-w-full rounded-lg; }
+
+/* ---------- Syntax highlighting (highlight.js), light + dark ---------- */
+.hljs { color: #24292f; }
+.hljs-comment, .hljs-quote { color: #6e7781; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-type { color: #cf222e; }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute, .hljs-meta .hljs-string { color: #0a3069; }
+.hljs-number, .hljs-built_in, .hljs-symbol, .hljs-variable, .hljs-template-variable { color: #0550ae; }
+.hljs-title, .hljs-section, .hljs-function .hljs-title, .hljs-title.function_ { color: #8250df; }
+.hljs-name, .hljs-tag, .hljs-selector-id, .hljs-selector-class { color: #116329; }
+.hljs-attr, .hljs-property { color: #0550ae; }
+.hljs-deletion { color: #82071e; }
+.dark .hljs { color: #e6edf3; }
+.dark .hljs-comment, .dark .hljs-quote { color: #8b949e; }
+.dark .hljs-keyword, .dark .hljs-selector-tag, .dark .hljs-literal, .dark .hljs-type { color: #ff7b72; }
+.dark .hljs-string, .dark .hljs-regexp, .dark .hljs-addition, .dark .hljs-attribute, .dark .hljs-meta .hljs-string { color: #a5d6ff; }
+.dark .hljs-number, .dark .hljs-built_in, .dark .hljs-symbol, .dark .hljs-variable, .dark .hljs-template-variable { color: #79c0ff; }
+.dark .hljs-title, .dark .hljs-section, .dark .hljs-function .hljs-title, .dark .hljs-title.function_ { color: #d2a8ff; }
+.dark .hljs-name, .dark .hljs-tag, .dark .hljs-selector-id, .dark .hljs-selector-class { color: #7ee787; }
+.dark .hljs-attr, .dark .hljs-property { color: #79c0ff; }
+.dark .hljs-deletion { color: #ffa198; }
