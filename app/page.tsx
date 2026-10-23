@@ -1,173 +1,159 @@
-import Sidebar from "./components/Siderbar";
+"use client";
 
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, GitHub } from "react-feather";
+import JsonLd from "./components/JsonLd";
+import ModelSelect from "./components/ModelSelect";
+import AgentCard from "./components/agents/AgentCard";
+import AgentPicker from "./components/agents/AgentPicker";
+import Composer, { ComposerHandle } from "./components/chat/Composer";
+import UseCaseGallery from "./components/usecases/UseCaseGallery";
+import { BUILTIN_AGENTS, getBuiltinAgent } from "@/lib/agents";
+import { useAgents, useModelCatalog } from "@/lib/agentStore";
+import { startChat } from "@/lib/startChat";
+import { Agent, Attachment, MODEL_PROVIDERS } from "@/lib/types";
+
+const QUICK_ACTIONS = [
+  { emoji: "🎮", label: "Build a game", agentId: "game-builder", text: "Build a browser game where " },
+  { emoji: "🌐", label: "Make a website", agentId: "web-builder", text: "Build a landing page for " },
+  { emoji: "🐞", label: "Debug code", agentId: "code-mentor", text: "Help me find the bug in this code:\n\n" },
+  { emoji: "✍️", label: "Write content", agentId: "content-writer", text: "Write a blog post about " },
+  { emoji: "📊", label: "Analyze data", agentId: "data-analyst", text: "Analyze the attached data and tell me " },
+  { emoji: "🧳", label: "Plan a trip", agentId: "travel-planner", text: "Plan a trip to " },
+  { emoji: "🗣️", label: "Practice a language", agentId: "language-tutor", text: "Let's practice " },
+];
 
 export default function Home() {
+  const router = useRouter();
+  const agents = useAgents();
+  const catalog = useModelCatalog();
+  const { availability } = catalog;
+  const [agent, setAgent] = useState<Agent>(BUILTIN_AGENTS[0]);
+  const [model, setModel] = useState("");
+  const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const composerRef = useRef<ComposerHandle>(null);
+
+  const noProviders = availability !== null && !MODEL_PROVIDERS.some(p => availability[p]);
+  const featuredAgents = agents.filter(a => a.featured).slice(0, 6);
+
+  const submit = () => startChat(router.push, { agentId: agent.id, prompt: input, attachments, model: model || undefined });
+
+  const quickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
+    const next = getBuiltinAgent(action.agentId);
+    // Commit the template synchronously so focus() can place the caret after it.
+    flushSync(() => {
+      if (next) setAgent(next);
+      setInput(action.text);
+    });
+    composerRef.current?.focus();
+  };
 
   return (
-    <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">
-      <Sidebar />
+    <div className="h-full overflow-y-auto">
+      <JsonLd />
+      {/* Hero: Manus-style prompt box */}
+      <section className="relative overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-40 h-[480px] bg-[radial-gradient(ellipse_at_top,rgb(var(--accent)/0.14),transparent_65%)]" />
+        <div className="relative mx-auto max-w-3xl px-4 pb-10 pt-[9vh] sm:px-6">
+          <Link href="/usecases?cat=games" className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1 text-xs text-muted shadow-card backdrop-blur transition-colors hover:text-fg">
+            <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-fg">NEW</span>
+            Build and play games right in the chat
+            <ArrowRight size={12} />
+          </Link>
+          <h1 className="text-center text-4xl font-semibold tracking-tight sm:text-5xl">What can I do for you?</h1>
+          <p className="mx-auto mt-3 max-w-xl text-center text-muted">
+            Pick an agent, describe the task, and TonyChat gets to work: games, web apps, code reviews, research and more, on Claude, GPT or Gemini.
+          </p>
 
-      <div className="flex-1 w-full max-w-none">
-        <section className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-20">
-          <div className="container mx-auto px-6 text-center">
-            <h1 className="text-4xl font-bold mb-4">
-              Your Open Source AI Companion
-            </h1>
-            <p className="text-xl mb-8">
-              Customizable, secure, and easy to deploy for personal and business
-              use.
-            </p>
-            <div className="space-x-4">
-              <a
-                href="/chat"
-                className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100"
-              >
-                Chat Now
-              </a>
-              <a
-                href="/store"
-                className="bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800"
-              >
-                Bot Store
-              </a>
-            </div>
+          <div className="mt-8">
+            <Composer
+              ref={composerRef}
+              size="hero"
+              autoFocus
+              value={input}
+              onChange={setInput}
+              onSubmit={submit}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              placeholder={agent.id === "game-builder" ? "Describe the game you want to play…" : `Ask ${agent.name} anything…`}
+              toolbar={
+                <>
+                  <AgentPicker agents={agents} value={agent} onChange={setAgent} />
+                  <ModelSelect value={model} onChange={setModel} catalog={catalog} autoLabel="Auto" autoHint="Auto model" />
+                </>
+              }
+            />
           </div>
-        </section>
 
-        <section className="py-20">
-          <div className="container mx-auto px-6">
-            <h2 className="text-3xl font-bold text-center mb-8">
-              Key Features
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
-                <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">
-                  Customizable Chatbots
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300">
-                  Deploy AI chatbots tailored to your specific needs.Tailor your
-                  chatbot to your specific needs with ease.
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
-                <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">
-                  Easy Fine-Tuning
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300">
-                  Effortlessly train and improve your models.Refine your models
-                  for optimal performance and accuracy.
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
-                <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">
-                  Safety & Privacy
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300">
-                  Your data is protected and secure with our platform.
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
-                <h3 className="font-bold text-xl mb-2 text-gray-900 dark:text-white">
-                  Open-Source
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300">
-                  Find, share, and use prompts to accelerate your AI
-                  development.
-                </p>
-              </div>
-            </div>
+          <div className="mt-8 flex flex-wrap justify-center gap-2">
+            {QUICK_ACTIONS.map(action => (
+              <button key={action.label} type="button" onClick={() => quickAction(action)} className="chip">
+                <span aria-hidden>{action.emoji}</span>
+                {action.label}
+              </button>
+            ))}
           </div>
-        </section>
-        
-        <section className="bg-purple-600 text-white py-20">
-          <div className="container mx-auto px-6 text-center">
-            <h2 className="text-3xl font-bold mb-4">
-              Ready to get started with TonyChat?
-            </h2>
-            <p className="text-xl mb-8">
-              Join our community and start building powerful AI applications
-              today.
+
+          {noProviders && (
+            <p className="mx-auto mt-6 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+              No model is set up yet.{" "}
+              <Link href="/settings" className="font-semibold underline underline-offset-2">
+                Add a free API key
+              </Link>{" "}
+              (Google Gemini, OpenRouter or Groq take about a minute, no card). You can still browse agents and play the examples below.
             </p>
-            <a
-              href="#"
-              className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100"
-            >
-              Get Started for Free
+          )}
+        </div>
+      </section>
+
+      {/* Use case gallery */}
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Use case gallery</h2>
+            <p className="mt-1 text-sm text-muted">Play an example, run its prompt, or remix it into something new.</p>
+          </div>
+          <Link href="/usecases" className="hidden text-sm font-medium text-accent hover:underline sm:block">
+            View all
+          </Link>
+        </div>
+        <UseCaseGallery limit={8} showAllLink />
+      </section>
+
+      {/* Featured agents */}
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Featured agents</h2>
+            <p className="mt-1 text-sm text-muted">Specialists with tuned instructions and a recommended model.</p>
+          </div>
+          <Link href="/store" className="text-sm font-medium text-accent hover:underline">
+            Marketplace
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredAgents.map(a => (
+            <AgentCard key={a.id} agent={a} onOpen={() => router.push(`/store?agent=${encodeURIComponent(a.id)}`)} />
+          ))}
+        </div>
+      </section>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs text-subtle sm:flex-row sm:px-6">
+          <span>© {new Date().getFullYear()} TonyChat · Open source under the MIT license</span>
+          <nav className="flex items-center gap-4">
+            <Link href="/store" className="hover:text-fg">Agents</Link>
+            <Link href="/usecases" className="hover:text-fg">Use cases</Link>
+            <a href="https://github.com/Stan370/TonyChat" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-fg">
+              <GitHub size={13} /> GitHub
             </a>
-          </div>
-        </section>
-        <footer className="bg-gray-800 text-white py-10">
-          <div className="container mx-auto px-6">
-            <div className="flex flex-wrap justify-between">
-              <div className="w-full md:w-1/4 mb-6 md:mb-0">
-                <h3 className="text-lg font-semibold mb-2">TonyChat</h3>
-                <p className="text-gray-400">
-                  Open-source multifunctional chatbot platform
-                </p>
-              </div>
-              <div className="w-full md:w-1/4 mb-6 md:mb-0">
-                <h3 className="text-lg font-semibold mb-2">Links</h3>
-                <ul className="text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Home
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Features
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Documentation
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div className="w-full md:w-1/4 mb-6 md:mb-0">
-                <h3 className="text-lg font-semibold mb-2">Community</h3>
-                <ul className="text-gray-400">
-                  <li>
-                    <a href="https://github.com/Stan370/TonyChat" className="hover:text-white">
-                      GitHub
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Forum
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-white">
-                      Discord
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div className="w-full md:w-1/4">
-                <h3 className="text-lg font-semibold mb-2">Subscribe</h3>
-                <form>
-                  <input
-                    type="email"
-                    placeholder="Enter your email"
-                    className="bg-gray-700 text-white px-4 py-2 rounded-lg w-full mb-2"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-purple-600 text-white px-4 py-2 rounded-lg w-full hover:bg-purple-700"
-                  >
-                    Subscribe
-                  </button>
-                </form>
-              </div>
-            </div>
-            <div className="border-t border-gray-700 mt-8 pt-8 text-sm text-gray-400 text-center">
-              &copy; 2024 TonyChat. All rights reserved.
-            </div>
-          </div>
-        </footer>
-      </div>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
