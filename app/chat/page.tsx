@@ -1,434 +1,548 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import Siderbar from "../components/Siderbar";
-import { OpenAIChatMessage, UserMessageContentPart } from "@/lib/ModelSetting";
-import Image from 'next/image';
-import { supabaseClient } from "@/lib/supabase";
-import { Bot, Agent, ModelProviderConfig } from "@/lib/types";
-import { allModelConfigs, getModelsByProvider } from "@/lib/modelConfig";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowDown, ArrowUpRight, Code, Edit, Sidebar } from "react-feather";
+import AgentAvatar from "../components/AgentAvatar";
+import ModelSelect from "../components/ModelSelect";
+import AgentDetailModal from "../components/agents/AgentDetailModal";
+import ArtifactPanel, { ArtifactTab } from "../components/chat/ArtifactPanel";
+import Composer, { ComposerHandle } from "../components/chat/Composer";
+import ConversationList from "../components/chat/ConversationList";
+import MessageItem from "../components/chat/MessageItem";
+import { BUILTIN_AGENTS } from "@/lib/agents";
+import {
+  buildShareUrl,
+  createConversation,
+  deleteConversation,
+  findAgent,
+  getConversation,
+  getDefaultAgent,
+  getSavedModel,
+  listConversations,
+  loadMessages,
+  markAgentUsed,
+  saveMessages,
+  saveModel,
+  takeLegacySelectedAgent,
+  titleFromText,
+  toggleFavorite,
+  updateConversation,
+  useAgents,
+  useConversations,
+  useFavorites,
+  providerHeaders,
+  useModelCatalog,
+} from "@/lib/agentStore";
+import { collectArtifacts } from "@/lib/artifacts";
+import { copyText } from "@/lib/clipboard";
+import { findModel, pickAvailableModel } from "@/lib/modelConfig";
+import { Agent, Attachment, ChatMessage, MODEL_PROVIDERS } from "@/lib/types";
 
-// Default agents (fallback)
-const defaultAgents: Agent[] = [
-  {
-    id: "default-gpt4",
-    name: "GPT-4",
-    description: "I am GPT-4, a large language model trained by OpenAI.",
-    avatar: "/ai-avatar.png",
-    category: "General",
-    tags: ["general", "assistant"],
-    author: "OpenAI",
-    systemPrompt: "I am GPT-4, a large language model trained by OpenAI."
-  },
-  {
-    id: "default-prompt-builder",
-    name: "GPT Prompt builder",
-    description: "Help you craft the best possible prompt for your needs.",
-    avatar: "/ai-avatar.png",
-    category: "Writing",
-    tags: ["prompt", "writing", "optimization"],
-    author: "Custom",
-    systemPrompt: 'Read all of the instructions below and once you understand them say "Shall we begin:" I want you to become my Prompt Creator. Your goal is to help me craft the best possible prompt for my needs. The prompt will be used by you, ChatGPT. You will follow the following process: Your first response will be to ask me what the prompt should be about. I will provide my answer, but we will need to improve it through continual iterations by going through the next steps. Based on my input, you will generate 3 sections. Revised Prompt (provide your rewritten prompt. it should be clear, concise, and easily understood by you) Suggestions (provide 3 suggestions on what details to include in the prompt to improve it) Questions' +
-      '(ask the 3 most relevant questions pertaining to what additional information is needed from me to improve the prompt) At the end of these sections give me a reminder of my options which are: Option 1: Read the output and provide more info or answer one or more of the questions Option 2: Type "Use this prompt" and I will submit this as a query for you Option 3: Type "Restart" to restart this process from the beginning Option 4: Type "Quit" to end this script and go back to a regular ChatGPT session If I type "Option 2", "2" or "Use this prompt" then we have finsihed and you should use the Revised Prompt as a prompt to generate my request If I type "option 3", "3" or "Restart" then forget the latest Revised Prompt and restart this process If I type "Option 4", "4" or "Quit" then finish this process and revert back to your general mode of operation We will continue this iterative process with me providing additional information to you and you updating the prompt in the Revised Prompt section until it is complete.'
-  },
-  {
-    id: "default-software-expert",
-    name: "Software Expert",
-    description: "Expert Software Development Engineer with extensive experience.",
-    avatar: "/ai-avatar.png",
-    category: "Development",
-    tags: ["coding", "development", "software"],
-    author: "Custom",
-    systemPrompt: "You are an expert Software Development Engineer (SDE) with extensive experience in various programming languages, software architectures, and development methodologies. Your role is to assist with coding problems, system design, and best practices in software development. When asked a question, please follow this process:\n\n1. Understand the Problem: Clarify the requirements and constraints of the given task or problem.\n2. Provide a High-Level Solution: Outline a general approach to solving the problem.\n3. Detailed Implementation: If requested, provide code snippets or more detailed explanations of the solution.\n4. Best Practices: Highlight any relevant best practices, design patterns, or optimization techniques.\n5. Potential Issues: Discuss any potential challenges or edge cases that should be considered.\n6. Follow-up: Ask if there are any parts of the solution that need further clarification or expansion.\n\nPlease respond with 'Ready to assist with your software development needs. What problem can I help you with today?' to indicate you're prepared to begin."
-  }
-];
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="h-full bg-canvas" />}>
+      <ChatApp />
+    </Suspense>
+  );
+}
 
+function replaceLast(messages: ChatMessage[], patch: Partial<ChatMessage>): ChatMessage[] {
+  if (!messages.length) return messages;
+  const copy = [...messages];
+  copy[copy.length - 1] = { ...copy[copy.length - 1], ...patch };
+  return copy;
+}
 
-const Chat = () => {
-  const [message, setMessage] = useState<string>("");
-  const [selectedAgent, setSelectedAgent] = useState<Agent>(defaultAgents[0]);
-  const [selectedModel, setSelectedModel] = useState<ModelProviderConfig>(allModelConfigs[0]);
-  const [conversations, setConversations] = useState<OpenAIChatMessage[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+function ChatApp() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const conversationParam = params.get("c");
+  const agentParam = params.get("agent");
 
-  // Load agent from localStorage on component mount
+  const catalog = useModelCatalog();
+  const { availability, loaded: availabilityLoaded, extraModels } = catalog;
+  const conversations = useConversations();
+  const agents = useAgents();
+  const favorites = useFavorites();
+  const agentsById = useMemo(() => Object.fromEntries(agents.map(a => [a.id, a])), [agents]);
+
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [agent, setAgent] = useState<Agent>(BUILTIN_AGENTS[0]);
+  const [conversationModel, setConversationModel] = useState<string | undefined>();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [streaming, setStreaming] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [mobileListOpen, setMobileListOpen] = useState(false);
+  const [panel, setPanel] = useState<{ key: string; tab: ArtifactTab } | null>(null);
+  const [panelExpanded, setPanelExpanded] = useState(false);
+  const [showAgentInfo, setShowAgentInfo] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const conversationIdRef = useRef<string | null>(null);
+  const pendingSendRef = useRef<{ prompt: string; attachments?: Attachment[] } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  // Bumped whenever the visible conversation changes so a finishing stream can't write into another one.
+  const generationRef = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const composerRef = useRef<ComposerHandle>(null);
+  const seenArtifactsRef = useRef<Set<string>>(new Set());
+  const artifactCompleteRef = useRef<Record<string, boolean>>({});
+
+  // ---- Route → state ---------------------------------------------------------------
   useEffect(() => {
-    const loadAgentFromStorage = () => {
-      try {
-        const storedAgent = localStorage.getItem('selectedAgent');
-        if (storedAgent) {
-          const agentData: Agent = JSON.parse(storedAgent);
-          setSelectedAgent(agentData);
-          console.log('Loaded agent from storage:', agentData);
-        }
-      } catch (error) {
-        console.error('Error loading agent from storage:', error);
+    // Already showing this conversation (we just created it while sending).
+    if (conversationParam && conversationParam === conversationIdRef.current) return;
+
+    abortRef.current?.abort();
+    abortRef.current = null;
+    generationRef.current += 1;
+    setStreaming(false);
+    setPanel(null);
+    setPanelExpanded(false);
+    setMobileListOpen(false);
+    artifactCompleteRef.current = {};
+
+    if (conversationParam) {
+      const conversation = getConversation(conversationParam);
+      if (!conversation) {
+        router.replace("/chat");
+        return;
       }
+      const conversationAgent = findAgent(conversation.agentId) ?? getDefaultAgent();
+      const stored = loadMessages(conversation.id);
+      conversationIdRef.current = conversation.id;
+      setConversationId(conversation.id);
+      setAgent(conversationAgent);
+      setConversationModel(conversation.model);
+      setMessages(stored);
+      seenArtifactsRef.current = new Set(collectArtifacts(stored).map(a => a.key));
+      setInput(conversation.draft?.text ?? "");
+      setAttachments(conversation.draft?.attachments ?? []);
+      if (conversation.draft) updateConversation(conversation.id, { draft: undefined });
+      if (conversation.pendingPrompt !== undefined || conversation.pendingAttachments) {
+        pendingSendRef.current = { prompt: conversation.pendingPrompt ?? "", attachments: conversation.pendingAttachments };
+        updateConversation(conversation.id, { pendingPrompt: undefined, pendingAttachments: undefined });
+      }
+      markAgentUsed(conversationAgent.id);
+    } else {
+      const requested = findAgent(agentParam) ?? takeLegacySelectedAgent();
+      if (!requested) {
+        const latest = listConversations()[0];
+        if (latest) {
+          router.replace(`/chat?c=${latest.id}`);
+          return;
+        }
+      }
+      conversationIdRef.current = null;
+      setConversationId(null);
+      setAgent(requested ?? getDefaultAgent());
+      setConversationModel(undefined);
+      setMessages([]);
+      seenArtifactsRef.current = new Set();
+      setInput("");
+      setAttachments([]);
+    }
+    stickToBottomRef.current = true;
+    setReady(true);
+  }, [conversationParam, agentParam, router]);
+
+  // Explicit choice for this chat > agent recommendation > last choice > any configured provider.
+  const modelId = useMemo(
+    () => pickAvailableModel([conversationModel, agent.model, ready ? getSavedModel() : undefined], availability, extraModels).model,
+    [conversationModel, agent, availability, ready, extraModels],
+  );
+
+  const handleModelChange = (model: string) => {
+    setConversationModel(model);
+    saveModel(model);
+    if (conversationIdRef.current) updateConversation(conversationIdRef.current, { model });
+  };
+
+  // ---- Sending ----------------------------------------------------------------------
+  const send = async (text: string, files: Attachment[], baseHistory: ChatMessage[]) => {
+    const content = text.trim();
+    if ((!content && !files.length) || streaming) return;
+
+    let id = conversationIdRef.current;
+    if (!id) {
+      const conversation = createConversation({ agentId: agent.id, model: conversationModel, title: titleFromText(content || files[0]?.name || agent.name) });
+      id = conversation.id;
+      conversationIdRef.current = id;
+      setConversationId(id);
+      router.replace(`/chat?c=${id}`);
+    }
+
+    const now = new Date().toISOString();
+    const history: ChatMessage[] = [...baseHistory, { role: "user", content, attachments: files.length ? files : undefined, createdAt: now }];
+    const placeholder: ChatMessage = { role: "assistant", content: "", model: modelId, createdAt: now };
+    // Artifacts in replaced replies (regenerate) should auto-open again.
+    seenArtifactsRef.current = new Set(Array.from(seenArtifactsRef.current).filter(key => Number(key.split(":")[0]) < history.length));
+    setMessages([...history, placeholder]);
+    saveMessages(id, history);
+    updateConversation(id, {}, { touch: true });
+    setInput("");
+    setAttachments([]);
+    setStreaming(true);
+    stickToBottomRef.current = true;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const generation = generationRef.current;
+    let received = "";
+    let servedBy = modelId;
+    let frame = 0;
+    // Batch UI updates to one per animation frame; streams can deliver hundreds of chunks per second.
+    const scheduleFlush = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (generation === generationRef.current) setMessages(prev => replaceLast(prev, { content: received, model: servedBy }));
+      });
     };
 
-    loadAgentFromStorage();
-  }, []);
+    let final: ChatMessage;
+    try {
+      const provider = findModel(modelId, extraModels)?.modelProvider;
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        // The visitor's own key for this provider, if they saved one in Settings.
+        headers: { "Content-Type": "application/json", ...(provider ? providerHeaders(provider) : {}) },
+        body: JSON.stringify({
+          model: modelId,
+          systemPrompt: agent.systemPrompt,
+          messages: history.filter(m => !m.error).map(({ role, content, attachments }) => ({ role, content, attachments })),
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message ?? `Request failed with status ${response.status}.`);
+      }
+      servedBy = response.headers.get("X-Model") ?? modelId;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += decoder.decode(value, { stream: true });
+        scheduleFlush();
+      }
+      received += decoder.decode();
+      final = { ...placeholder, content: received || "[The model returned an empty response.]", model: servedBy };
+    } catch (error) {
+      final = controller.signal.aborted
+        ? { ...placeholder, content: received ? `${received}\n\n[Stopped]` : "[Stopped]", model: servedBy }
+        : { ...placeholder, content: error instanceof Error ? error.message : "Something went wrong.", error: true, model: servedBy };
+    }
+    if (frame) cancelAnimationFrame(frame);
+
+    // Save to the conversation that started the request, even if the user has moved on.
+    saveMessages(id, [...history, final]);
+    updateConversation(id, {}, { touch: true });
+    if (generation === generationRef.current) {
+      setMessages([...history, final]);
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  };
+
+  const sendRef = useRef(send);
+  sendRef.current = send;
+
+  // Prompts handed over from the home page or the use case gallery.
+  useEffect(() => {
+    if (!ready || !availabilityLoaded || streaming || !pendingSendRef.current) return;
+    const pending = pendingSendRef.current;
+    pendingSendRef.current = null;
+    sendRef.current(pending.prompt, pending.attachments ?? [], messages);
+  }, [ready, availabilityLoaded, streaming, messages]);
+
+  const submit = () => send(input, attachments, messages);
+
+  const regenerate = () => {
+    const lastUserIndex = messages.map(m => m.role).lastIndexOf("user");
+    if (lastUserIndex === -1) return;
+    const lastUser = messages[lastUserIndex];
+    send(lastUser.content, lastUser.attachments ?? [], messages.slice(0, lastUserIndex));
+  };
+
+  const newChat = useCallback(() => {
+    router.push(`/chat?agent=${encodeURIComponent(agent.id)}`);
+  }, [router, agent.id]);
+
+  const startWithPrompt = (prompt?: string) => {
+    setShowAgentInfo(false);
+    if (!prompt) return newChat();
+    if (!messages.length) return send(prompt, [], []);
+    const conversation = createConversation({ agentId: agent.id, pendingPrompt: prompt });
+    router.push(`/chat?c=${conversation.id}`);
+  };
+
+  // ---- Artifacts ----------------------------------------------------------------------
+  const artifacts = useMemo(() => collectArtifacts(messages), [messages]);
+  const artifactsByKey = useMemo(() => Object.fromEntries(artifacts.map(a => [a.key, a])), [artifacts]);
+  const activeArtifact = panel ? artifactsByKey[panel.key] : undefined;
+
+  // Open new artifacts as they start streaming (code view), like Claude/LobeChat artifacts.
+  useEffect(() => {
+    if (!streaming) return;
+    for (const artifact of artifacts) {
+      if (!seenArtifactsRef.current.has(artifact.key)) {
+        seenArtifactsRef.current.add(artifact.key);
+        setPanel({ key: artifact.key, tab: artifact.complete ? "preview" : "code" });
+      }
+    }
+  }, [artifacts, streaming]);
+
+  // Switch to the live preview as soon as the open artifact's code is complete.
+  useEffect(() => {
+    if (!activeArtifact) return;
+    const wasComplete = artifactCompleteRef.current[activeArtifact.key];
+    if (activeArtifact.complete && wasComplete === false) {
+      setPanel(p => (p && p.key === activeArtifact.key ? { ...p, tab: "preview" } : p));
+    }
+    artifactCompleteRef.current[activeArtifact.key] = activeArtifact.complete;
+  }, [activeArtifact]);
+
+  const openArtifact = (key: string) => setPanel(p => (p?.key === key ? null : { key, tab: artifactsByKey[key]?.complete ? "preview" : "code" }));
+
+  // ---- Scrolling ------------------------------------------------------------------------
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stickToBottomRef.current = nearBottom;
+    setAtBottom(nearBottom);
+  };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    stickToBottomRef.current = true;
   };
-
-  useEffect(scrollToBottom, [conversations]);
-
-  const loadOrCreateConversation = useCallback(async () => {
-    try {
-      // TODO: Replace with actual user ID once authentication is implemented
-      const userId = "example-user-id";
-
-      // Check if there's an ongoing conversation for this specific agent
-      const { data: existingConversation, error: existingConversationError } = await supabaseClient
-        .from('conversations')
-        .select('id')
-        .eq('agent_id', selectedAgent.id) // Use agent.id instead of hardcoded value
-        .order('create_time', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existingConversationError && existingConversationError.code !== 'PGRST116') {
-        throw existingConversationError;
-      }
-
-      if (existingConversation) {
-        setCurrentConversationId(existingConversation.id);
-        await loadConversationHistory(existingConversation.id);
-      } else {
-        // Create new conversation with agent information
-        const { data: newConversation, error: newConversationError } = await supabaseClient
-          .from('conversations')
-          .insert({ 
-            agent_id: selectedAgent.id,
-            agent_name: selectedAgent.name,
-            agent_description: selectedAgent.description,
-            agent_category: selectedAgent.category
-          })
-          .select()
-          .single();
-
-        if (newConversationError) throw newConversationError;
-
-        if (newConversation) {
-          setCurrentConversationId(newConversation.id);
-          console.log('Created new conversation:', newConversation);
-        } else {
-          throw new Error("Failed to create new conversation");
-        }
-      }
-    } catch (error) {
-      console.error("Error in loadOrCreateConversation:", error);
-      // You might want to set an error state here to display to the user
-    }
-  }, [selectedAgent]);
 
   useEffect(() => {
-    // Load or create a new conversation when the component mounts or agent changes
-    loadOrCreateConversation();
-  }, [loadOrCreateConversation]);
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
-  const loadConversationHistory = async (conversationId: string) => {
-    try {
-      const { data: messages, error } = await supabaseClient
-        .from('Messages')
-        .select('role, content')
-        .eq('conversation_id', conversationId)
-        .order('create_time', { ascending: true });
+  const noProviders = availability !== null && !MODEL_PROVIDERS.some(p => availability[p]);
+  const currentConversation = conversations.find(c => c.id === conversationId);
+  const model = findModel(modelId, extraModels);
 
-      if (error) throw error;
-
-      if (messages) {
-        setConversations(messages.map(msg => ({
-          role: msg.role as "user" | "assistant" | "system",
-          content: msg.content
-        })));
-      } else {
-        console.warn("No messages found for conversation:", conversationId);
-      }
-    } catch (error) {
-      console.error("Error in loadConversationHistory:", error);
-      // You might want to set an error state here to display to the user
-    }
-  };
-
-  // Function to handle sending a message
-  const sendMessage = async () => {
-    if (!message.trim() || isWaitingForResponse) return;
-
-    const userMessage: OpenAIChatMessage = { role: "user", content: message };
-
-    // Persist user message
-    if (currentConversationId) {
-      try {
-        await supabaseClient.from('Messages').insert({
-          conversation_id: currentConversationId,
-          role: "user",
-          content: message,
-          content_type: "text"
-        });
-      } catch (error) {
-        console.error("Error persisting user message:", error);
-      }
-    }
-
-    // Immediately update UI with user message
-    setConversations(prev => [...prev, userMessage]);
-    setMessage(""); // Clear input field
-    setIsWaitingForResponse(true);
-
-    if (currentConversationId) {
-      try {
-        // Call API route and add AI message to conversations
-        const response = await fetch(`/api/chat/${selectedModel.modelProvider}`, {
-          method: "POST",
-          body: JSON.stringify({
-            message,
-            conversationId: currentConversationId,
-            agentId: selectedAgent.id, // Use agent.id instead of name
-            systemPrompt: selectedAgent.systemPrompt, // Include system prompt
-            model: selectedModel.model // Include selected model
-          }),
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+  const conversationList = (onClose?: () => void) => (
+    <ConversationList
+      conversations={conversations}
+      agentsById={agentsById}
+      activeId={conversationId}
+      onNew={() => {
+        setMobileListOpen(false);
+        newChat();
+      }}
+      onDelete={id => {
+        deleteConversation(id);
+        if (id === conversationIdRef.current) {
+          conversationIdRef.current = null;
+          router.replace(`/chat?agent=${encodeURIComponent(agent.id)}`);
         }
-
-        const data = await response.json();
-        console.log(data);
-
-        // Add the assistant's response to the conversation
-        const assistantMessage: OpenAIChatMessage = { role: "assistant", content: data };
-        setConversations(prev => [...prev, assistantMessage]);
-
-        // Persist assistant message
-        await supabaseClient.from('Messages').insert({
-          conversation_id: currentConversationId,
-          role: "assistant",
-          content: data,
-          content_type: "text"
-        });
-      } catch (error) {
-        console.error("Error during fetch:", error);
-        if (error instanceof TypeError && (error.cause as { name?: string })?.name === 'ConnectTimeoutError') {
-          console.error("Connection timeout error. Please check your network connection.");
-          setConversations(prevConversations => [
-            ...prevConversations,
-            { role: "assistant", content: "Connection timeout error. Please check your network connection." },
-          ]);
-        } else {
-          setConversations(prevConversations => [
-            ...prevConversations,
-            { role: "assistant", content: "An error occurred while sending the message. Please check your OPENAI API KEY in the setting page." },
-          ]);
-        }
-      } finally {
-        setIsWaitingForResponse(false);
-        setMessage("");
-      }
-    }
-  };
-
-  // Message input handler
-  const handleMessageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(event.target.value);
-  };
+      }}
+      onRename={(id, title) => updateConversation(id, { title })}
+      onNavigate={() => setMobileListOpen(false)}
+      onClose={onClose}
+    />
+  );
 
   return (
-    <div className="relative min-h-screen flex flex-row bg-gray-50 dark:bg-[#17171a] dark:text-red-50">
-      <Siderbar></Siderbar>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Agent Info Header */}
-        <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 p-4">
-          <div className="max-w-3xl mx-auto flex items-center gap-3">
-            <Image
-              src={selectedAgent.avatar}
-              alt={`${selectedAgent.name} Avatar`}
-              width={40}
-              height={40}
-              className="rounded-full"
-            />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {selectedAgent.name}
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                {selectedAgent.description}
-              </p>
-            </div>
-            <div className="ml-auto flex gap-2">
-              {/* Model Selector */}
-              <select
-                value={selectedModel.model}
-                onChange={(e) => {
-                  const model = allModelConfigs.find(m => m.model === e.target.value);
-                  if (model) setSelectedModel(model);
-                }}
-                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {allModelConfigs.map((model) => (
-                  <option key={model.model} value={model.model}>
-                    {model.modelProvider.toUpperCase()}: {model.model}
-                  </option>
-                ))}
-              </select>
-              
-              <button
-                onClick={() => window.location.href = '/store'}
-                className="px-3 py-1 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-              >
-                Change Agent
-              </button>
-            </div>
-          </div>
+    <div className="flex h-full">
+      {/* Conversation list */}
+      <aside className={`hidden w-64 shrink-0 border-r border-line bg-surface ${listCollapsed ? "" : "lg:block"}`}>{conversationList()}</aside>
+      {mobileListOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={() => setMobileListOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-line bg-surface shadow-lift animate-slide-up">
+            {conversationList(() => setMobileListOpen(false))}
+          </aside>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div id="chat-log" className="max-w-3xl mx-auto space-y-4">
-            {conversations.map((message, index) => (
-              <div
+      {/* Chat column */}
+      <section className={`relative flex min-w-0 flex-1 flex-col ${panel && panelExpanded ? "lg:hidden" : ""}`}>
+        <header className="flex h-14 shrink-0 items-center gap-1.5 border-b border-line bg-surface/80 px-2 backdrop-blur sm:px-3">
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => (window.matchMedia("(min-width: 1024px)").matches ? setListCollapsed(c => !c) : setMobileListOpen(true))}
+            aria-label="Toggle chat list"
+            title="Chat list"
+          >
+            <Sidebar size={17} />
+          </button>
+          <button type="button" onClick={() => setShowAgentInfo(true)} className="flex min-w-0 items-center gap-2 rounded-xl px-1.5 py-1 text-left hover:bg-elevated" title="Agent details">
+            <AgentAvatar avatar={agent.avatar} name={agent.name} background={agent.avatarBg} size={30} />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{agent.name}</span>
+              <span className="block max-w-[40vw] truncate text-xs text-muted">{currentConversation?.title ?? agent.description}</span>
+            </span>
+          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <ModelSelect value={modelId} onChange={handleModelChange} catalog={catalog} align="right" className="hidden sm:block" />
+            {artifacts.length > 0 && (
+              <button
+                type="button"
+                className={`btn-icon ${panel ? "bg-accent-soft text-accent" : ""}`}
+                onClick={() => (panel ? setPanel(null) : openArtifact(artifacts[artifacts.length - 1].key))}
+                aria-label={panel ? "Hide preview" : "Show preview"}
+                title={panel ? "Hide preview" : "Show preview"}
+              >
+                <Code size={17} />
+              </button>
+            )}
+            <button type="button" className="btn-icon" onClick={newChat} aria-label="New chat" title="New chat">
+              <Edit size={17} />
+            </button>
+          </div>
+        </header>
+
+        {noProviders && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            No model is set up yet.{" "}
+            <Link href="/settings" className="font-semibold underline underline-offset-2">
+              Add a free API key in Settings
+            </Link>{" "}
+            (Gemini, OpenRouter, Groq and others have free tiers) to start chatting.
+          </div>
+        )}
+
+        <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+            {ready && messages.length === 0 && (
+              <div className="flex flex-col items-center pt-[6vh] text-center animate-fade-in">
+                <AgentAvatar avatar={agent.avatar} name={agent.name} background={agent.avatarBg} size={72} />
+                <h1 className="mt-4 text-2xl font-semibold">{agent.name}</h1>
+                <p className="mt-1 max-w-md text-sm text-muted">{agent.description}</p>
+                <p className="mt-2 text-xs text-subtle">
+                  by {agent.author}
+                  {model && ` · ${model.label}`}
+                </p>
+                {agent.starters?.length ? (
+                  <div className="mt-8 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
+                    {agent.starters.map(starter => (
+                      <button
+                        key={starter}
+                        type="button"
+                        onClick={() => send(starter, [], [])}
+                        disabled={noProviders || streaming}
+                        className="group flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-3.5 text-left text-sm shadow-card transition-colors hover:border-accent/40 hover:bg-elevated disabled:opacity-50"
+                      >
+                        {starter}
+                        <ArrowUpRight size={15} className="mt-0.5 shrink-0 text-subtle group-hover:text-accent" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <Link href="/store" className="mt-6 text-xs font-medium text-accent hover:underline">
+                  Switch agent in the marketplace
+                </Link>
+              </div>
+            )}
+
+            {messages.map((message, index) => (
+              <MessageItem
                 key={index}
-                className={`flex ${message.role === 'user' ? 'justify-start' : 'justify-end'}`}
-              >
-                <div className={`flex ${message.role === 'user' ? 'flex-row' : 'flex-row-reverse'} items-start max-w-[80%]`}>
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden bg-gray-300 mr-3">
-                    <Image
-                      src={message.role === 'user' ? '/user.jpg' : selectedAgent.avatar}
-                      alt={message.role === 'user' ? 'User Avatar' : `${selectedAgent.name} Avatar`}
-                      width={40}
-                      height={40}
-                    />
-                  </div>
-                  <div
-                    className={`p-3 rounded-lg ${message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100'
-                      }`}
-                  >
-                    {Array.isArray(message.content)
-                      ? message.content.map((part: UserMessageContentPart, partIndex) => (
-                        <span key={partIndex}>
-                          {part.type === "text" && <span>{part.text}</span>}
-                          {part.type === "image_url" && (
-                            <Image
-                              src={part.image_url.url}
-                              alt="Content"
-                              width={400}
-                              height={300}
-                              className="my-2 max-w-full rounded"
-                            />
-                          )}
-                        </span>
-                      ))
-                      : message.content}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={message}
-                onChange={handleMessageChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && !isWaitingForResponse) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                className="flex-1 p-2 border-2 border-gray-200 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-                placeholder="Type your message..."
-                disabled={isWaitingForResponse}
+                message={message}
+                index={index}
+                agent={agent}
+                isLast={index === messages.length - 1}
+                streaming={streaming && index === messages.length - 1}
+                artifacts={artifactsByKey}
+                activeArtifactKey={panel?.key ?? null}
+                onOpenArtifact={openArtifact}
+                onRegenerate={!streaming && index === messages.length - 1 ? regenerate : undefined}
               />
-              <button
-                onClick={sendMessage}
-                className={`ml-2 px-4 py-2 bg-blue-500 text-white rounded-md transition duration-150 ease-in-out  ${isWaitingForResponse ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
-                  }`}
-                disabled={isWaitingForResponse}
-              >
-                {isWaitingForResponse ? (
-                  <svg className="animate-spin h-6 w-9" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <span>Send</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="group border relative active:opacity-90">
-        {/* Dynamic Agent History */}
-        <div className="max-h-96 overflow-y-auto">
-          {defaultAgents.map((agent) => (
-            <a 
-              key={agent.id}
-              href="/chat" 
-              className="flex items-center gap-2 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-              onClick={(e) => {
-                e.preventDefault();
-                setSelectedAgent(agent);
-                // Clear current conversation when switching agents
-                setCurrentConversationId(null);
-                setConversations([]);
-              }}
-            >
-              <Image
-                src={agent.avatar}
-                alt={`${agent.name} Avatar`}
-                width={24}
-                height={24}
-                className="rounded-full"
-              />
-              <div className="relative min-w-48 h-20 p-2 hover:bg-gray-200 rounded grow overflow-hidden whitespace-nowrap">
-                <span className="text-sm font-medium">{agent.name}</span>
-                <p className="text-xs text-gray-500 truncate">{agent.description}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-        
-        {/* Model Provider Quick Switch */}
-        <div className="border-t p-2">
-          <div className="text-xs text-gray-500 mb-2">Quick Model Switch:</div>
-          <div className="flex gap-1">
-            {['openai', 'gemini', 'claude'].map((provider) => (
-              <button
-                key={provider}
-                onClick={() => {
-                  const models = getModelsByProvider(provider as "openai" | "gemini" | "claude");
-                  if (models.length > 0) {
-                    setSelectedModel(models[0]);
-                  }
-                }}
-                className={`px-2 py-1 text-xs rounded ${
-                  selectedModel.modelProvider === provider
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                {provider.toUpperCase()}
-              </button>
             ))}
           </div>
         </div>
-      </div>
+
+        {!atBottom && messages.length > 0 && (
+          <button type="button" onClick={scrollToBottom} className="absolute bottom-32 left-1/2 -translate-x-1/2 rounded-full border border-line bg-surface p-2 shadow-lift" aria-label="Scroll to latest">
+            <ArrowDown size={16} />
+          </button>
+        )}
+
+        <div className="shrink-0 px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
+          <div className="mx-auto max-w-3xl">
+            <Composer
+              ref={composerRef}
+              value={input}
+              onChange={setInput}
+              onSubmit={submit}
+              onStop={() => abortRef.current?.abort()}
+              streaming={streaming}
+              disabled={noProviders}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              placeholder={`Message ${agent.name}…`}
+              toolbar={<ModelSelect value={modelId} onChange={handleModelChange} catalog={catalog} direction="up" className="sm:hidden" />}
+            />
+            <p className="mt-2 hidden text-center text-[11px] text-subtle sm:block">
+              Enter to send · Shift+Enter for a new line · AI can make mistakes, so check important info.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Artifact panel: side-by-side on desktop, full screen on phones */}
+      {panel && activeArtifact && (
+        <div className={`fixed inset-0 z-50 border-l border-line lg:static lg:z-auto ${panelExpanded ? "lg:flex-1" : "lg:w-[46%] lg:min-w-[420px] lg:max-w-[900px]"}`}>
+          <ArtifactPanel
+            artifacts={artifacts}
+            activeKey={panel.key}
+            onSelect={key => setPanel({ key, tab: artifactsByKey[key]?.complete ? "preview" : "code" })}
+            tab={panel.tab}
+            onTabChange={tab => setPanel(p => (p ? { ...p, tab } : p))}
+            expanded={panelExpanded}
+            onToggleExpanded={() => setPanelExpanded(e => !e)}
+            onClose={() => {
+              setPanel(null);
+              setPanelExpanded(false);
+            }}
+          />
+        </div>
+      )}
+
+      {showAgentInfo && (
+        <AgentDetailModal
+          agent={agent}
+          availability={availability}
+          favorite={favorites.includes(agent.id)}
+          onToggleFavorite={() => toggleFavorite(agent.id)}
+          onClose={() => setShowAgentInfo(false)}
+          onStartChat={startWithPrompt}
+          onShare={async () => {
+            if (await copyText(buildShareUrl(agent))) setToast("Share link copied");
+          }}
+        />
+      )}
+
+      {toast && (
+        <div role="status" className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-fg px-4 py-2 text-sm text-surface shadow-lift animate-slide-up md:bottom-6">
+          {toast}
+        </div>
+      )}
     </div>
   );
-};
-
-export default Chat;
+}
