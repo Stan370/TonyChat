@@ -11,6 +11,10 @@ declare global {
         OPENAI_BASE_URL: string;
         OPENAI_ORG_ID: string;
         GEMINI_API_KEY:string;
+        GOOGLE_GEMINI_API_KEY: string;
+        GOOGLE_API_KEY: string;
+        GOOGLE_GEMINI_BASE_URL: string;
+        OPENAI_PROXY_URL: string;
         AZURE_OPENAI_API_KEY: string;
         NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT: string;
         NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID: string;
@@ -31,6 +35,7 @@ declare global {
     backendUrl: string;
     openaiApiKey: string;
     geminiKey: string;
+    geminiBaseUrl: string;
     openaiBaseUrl: string;
     openaiProxyUrl: string;
     openaiOrgId: string;
@@ -61,6 +66,9 @@ declare global {
       OPENAI_PROXY_URL,
       OPENAI_ORG_ID, 
       GEMINI_API_KEY,
+      GOOGLE_GEMINI_API_KEY,
+      GOOGLE_API_KEY,
+      GOOGLE_GEMINI_BASE_URL,
       AZURE_OPENAI_API_KEY,
       NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT,
       NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID,
@@ -77,8 +85,10 @@ declare global {
       nodeEnv: NODE_ENV,
       vercelEnv: NEXT_PUBLIC_VERCEL_ENV,
       backendUrl: NEXT_PUBLIC_BACKEND_URL,
-      openaiApiKey: OPENAI_API_KEY,
-      geminiKey:GEMINI_API_KEY,
+      openaiApiKey: OPENAI_API_KEY || '',
+      // GOOGLE_GEMINI_API_KEY is the name used in .env.example; GEMINI_API_KEY is the legacy name.
+      geminiKey: GEMINI_API_KEY || GOOGLE_GEMINI_API_KEY || GOOGLE_API_KEY || '',
+      geminiBaseUrl: GOOGLE_GEMINI_BASE_URL || '',
       // ... other properties   
       openaiBaseUrl: OPENAI_BASE_URL,
       openaiProxyUrl: OPENAI_PROXY_URL|| '',
@@ -88,7 +98,7 @@ declare global {
       azureGpt35TurboId: NEXT_PUBLIC_AZURE_GPT_35_TURBO_ID,
       azureGpt45VisionId: NEXT_PUBLIC_AZURE_GPT_45_VISION_ID,
       azureGpt45TurboId: NEXT_PUBLIC_AZURE_GPT_45_TURBO_ID,
-      anthropicApiKey: ANTHROPIC_API_KEY,
+      anthropicApiKey: ANTHROPIC_API_KEY || '',
       githubToken: GITHUB_TOKEN || '',
       laravelApiUrl: LARAVEL_API_URL || 'http://localhost:8000',
       laravelApiToken: LARAVEL_API_TOKEN || '',

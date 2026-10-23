@@ -1,5 +1,6 @@
 // Re-export types from the unified types file
 export type {
+  ModelProvider,
   ModelProviderConfig,
   LLMParams,
   LLMRoleType,
@@ -16,6 +17,11 @@ export {
   geminiConfig,
   claudeConfig,
   allModelConfigs,
+  LEGACY_MODEL_ALIASES,
   getModelsByProvider,
-  getModelConfig
+  getDefaultModel,
+  getModelConfig,
+  resolveModel,
+  pickAvailableModel,
+  inferProvider
 } from "@/lib/modelConfig";
