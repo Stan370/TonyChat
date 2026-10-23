@@ -17,7 +17,7 @@ async function chat() {
   // Make sure to include these imports:
   // import { GoogleGenerativeAI } from "@google/generative-ai";
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
   const chat = model.startChat({
     history: [
       {
@@ -42,7 +42,7 @@ async function chatStreaming() {
   // Make sure to include these imports:
   // import { GoogleGenerativeAI } from "@google/generative-ai";
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
   const chat = model.startChat({
     history: [
       {
@@ -73,7 +73,7 @@ async function chatStreamingWithImages() {
   // Make sure to include these imports:
   // import { GoogleGenerativeAI } from "@google/generative-ai";
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
   const chat = model.startChat();
 
   let result = await chat.sendMessageStream("Hello, I'm designing inventions. Can I show you one?");
